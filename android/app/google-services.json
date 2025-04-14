@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "78610747500",
+    "firebase_url": "https://demoone-587a4-default-rtdb.firebaseio.com",
+    "project_id": "demoone-587a4",
+    "storage_bucket": "demoone-587a4.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:78610747500:android:d0512524bc61c59a2fc849",
+        "android_client_info": {
+          "package_name": "com.example.chat_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoOmpqOTbW6MV9QRGrEy2VWXbirwbEVzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
