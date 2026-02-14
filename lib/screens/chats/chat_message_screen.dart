@@ -1,12 +1,9 @@
-import 'dart:developer';
-
 import 'package:chat_app/constants/constants.dart';
 import 'package:chat_app/models/group.dart';
 import 'package:chat_app/models/message.dart';
 import 'package:chat_app/models/user.dart';
 import 'package:chat_app/provider/chat_provider.dart';
 import 'package:chat_app/provider/user_provider.dart';
-import 'package:chat_app/screens/chats/chats_screen.dart';
 import 'package:chat_app/screens/chats/group/group_detail_screen.dart';
 import 'package:chat_app/screens/chats/widgets/incoming_chat_cell.dart';
 import 'package:chat_app/screens/chats/widgets/notification_cell.dart';
