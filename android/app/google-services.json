@@ -8,6 +8,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:78610747500:android:2d67262e06b0546f2fc849",
+        "android_client_info": {
+          "package_name": "com.bhuvneshwargarg.firebasedbexample"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoOmpqOTbW6MV9QRGrEy2VWXbirwbEVzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:78610747500:android:d0512524bc61c59a2fc849",
         "android_client_info": {
           "package_name": "com.example.chat_app"
