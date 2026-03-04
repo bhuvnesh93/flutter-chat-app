@@ -15,4 +15,5 @@ class MessageType {
   static const String audio = "AUDIO";
   static const String newGroup = "NEW_GROUP";
   static const String addMember = "ADD_MEMBER";
+  static const String removeMember = "REMOVE_MEMBER";
 }

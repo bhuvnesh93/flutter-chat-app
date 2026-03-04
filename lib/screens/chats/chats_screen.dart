@@ -8,6 +8,7 @@ import 'package:chat_app/screens/chats/chat_message_screen.dart';
 import 'package:chat_app/screens/chats/new_chat_screen.dart';
 import 'package:chat_app/screens/profile/profile_detail_screen.dart';
 import 'package:chat_app/screens/chats/widgets/chats_list_item.dart';
+import 'package:chat_app/widgets/app_header.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -23,46 +24,15 @@ class ChatsScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatsScreenState extends ConsumerState<ChatsScreen> {
-  void prepareGroupDataModel(value) {
-    Map<String, dynamic> myData = Map<String, dynamic>.from(value as Map);
-    try {
-      Map<String, Member> members = Map.from(myData["members"]).map(
-        (k, v) => MapEntry<String, Member>(
-          k,
-          Member(
-            unreadGroupCount: v["unread_group_count"],
-            uid: v["uid"],
-            active: v['active'],
-            deleteTill: v["delete_till"],
-            lastSeenMessageTimestamp: v["last_seen_message_timestamp"],
-            admin: v?["admin"] ?? false,
-          ),
-        ),
-      );
-      print(members);
-      LastMessage? lastMessage =
-          myData.containsKey("lastMessage")
-              ? LastMessage(
-                messageId: myData["lastMessage"]?["message_id"],
-                messageType: myData["lastMessage"]?["message_type"],
-                message: myData["lastMessage"]?["message"],
-                type: myData["lastMessage"]?["type"],
-                senderId: myData["lastMessage"]?["sender_id"],
-                timestamp: myData["lastMessage"]?["timestamp"],
-              )
-              : null;
-      GroupData groupData = GroupData(
-        groupId: myData["group_id"],
-        imageUrl: myData["image_url"]!,
-        members: members,
-        lastMessage: lastMessage,
-        name: myData["name"]!,
-        createdBy: myData["created_by"],
-        groupDeleted: myData["group_deleted"],
-        group: myData["group"],
-        timestamp: myData["timestamp"],
-      );
+  late String _uid;
 
+  void _prepareGroupDataModel(value) {
+    final originalMap = value as Map<Object?, Object?>;
+    Map<String, dynamic> castedMap = originalMap.cast<String, dynamic>();
+    try {
+      GroupData groupData = GroupData.fromMap(
+        castedMap.cast<String, dynamic>(),
+      );
       ref.read(chatProvider.notifier).saveUserChatGroups(groupData);
     } on Exception catch (e) {
       print("e $e");
@@ -70,22 +40,19 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
   }
 
   void _fetchUserGroups() async {
-    final userData = ref.read(userProvider).user;
-    String uid = userData.uid;
     DatabaseReference userRef = FirebaseDatabase.instance.ref(
-      "/chat/users/$uid/group",
+      "/chat/users/$_uid/group",
     );
     DatabaseReference groupRef = FirebaseDatabase.instance.ref("/chat/group");
     userRef.onValue.listen((DatabaseEvent event) {
       if (event.snapshot.exists) {
         final originalMap = event.snapshot.value as Map<Object?, Object?>;
-        Map<String, dynamic> groups = originalMap.cast<String, dynamic>();
-        groups.forEach((key, value) async {
+        Map<String, dynamic> castedMap = originalMap.cast<String, dynamic>();
+        castedMap.forEach((key, value) async {
           if (value == true) {
-            final dataSnapshot = await groupRef.child(key).get();
-            print(dataSnapshot.value);
-            if (dataSnapshot.value != null && dataSnapshot.value is Map) {
-              prepareGroupDataModel(dataSnapshot.value);
+            final snapshot = await groupRef.child(key).get();
+            if (snapshot.exists) {
+              _prepareGroupDataModel(snapshot.value);
             }
           } else {
             ref.read(chatProvider.notifier).removeGroup(key);
@@ -96,11 +63,17 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
   }
 
   void _fetchGroupsChildUpdated() {
-    FirebaseDatabase.instance.ref("/chat/group").onChildChanged.listen((
-      DatabaseEvent event,
-    ) {
-      prepareGroupDataModel(event.snapshot.value);
-    });
+    FirebaseDatabase.instance
+        .ref("/chat/group")
+        .onChildChanged
+        .listen(
+          (DatabaseEvent event) {
+            _prepareGroupDataModel(event.snapshot.value);
+          },
+          onError: (error) {
+            print('Listen error: $error');
+          },
+        );
   }
 
   void _fetchUsersOnce() async {
@@ -108,37 +81,33 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
     final snapshot = await usersRef.get();
     if (snapshot.exists) {
       final originalMap = snapshot.value as Map<Object?, Object?>;
-      Map<String, dynamic> userList = originalMap.cast<String, dynamic>();
-      List<UserData> data1 =
-          userList.values
-              .map(
-                (entry) => UserData(
-                  uid: entry["uid"],
-                  name: entry["name"],
-                  imageUrl: entry["image_url"],
-                  status: entry["status"],
-                  email: entry["email"],
-                  online: entry["online"],
-                  lastSeenOnline: entry["last_seen_online"],
-                ),
-              )
+      Map<String, dynamic> castedMap = originalMap.cast<String, dynamic>();
+      final usersList =
+          castedMap.values
+              .map((map) => UserData.fromMap(map.cast<String, dynamic>()))
+              .toList()
+              .where((element) => element.uid != _uid)
               .toList();
-      ref.read(chatProvider.notifier).saveUsersList(data1);
+      ref.read(chatProvider.notifier).saveUsersList(usersList);
     }
   }
 
   void _fetchUserChildUpdates() {
     DatabaseReference usersRef = FirebaseDatabase.instance.ref("/chat/users");
     usersRef.onChildChanged.listen((DatabaseEvent event) {
-      var userList = ref.read(chatProvider).usersList;
       final originalMap = event.snapshot.value as Map<Object?, Object?>;
-      Map<String, dynamic> users = originalMap.cast<String, dynamic>();
-      UserData userData = UserData.fromJson(users);
-      int indexToUpdate = userList.indexWhere(
-        (user) => user.uid == originalMap["uid"],
+      Map<String, dynamic> castedMap = originalMap.cast<String, dynamic>();
+      UserData childChanged = UserData.fromMap(
+        castedMap.cast<String, dynamic>(),
       );
+
+      var userList = ref.read(chatProvider).usersList;
+      int indexToUpdate = userList.indexWhere(
+        (element) => element.uid == childChanged.uid,
+      );
+
       if (indexToUpdate != -1) {
-        userList[indexToUpdate] = userData; // Updates 'Bob' to 'Robert'
+        userList[indexToUpdate] = childChanged;
       }
       ref.read(chatProvider.notifier).saveUsersList(userList);
     });
@@ -147,6 +116,8 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
   @override
   void initState() {
     super.initState();
+
+    _uid = ref.read(userProvider).user.uid;
 
     // fetch all users once
     _fetchUsersOnce();
@@ -165,35 +136,32 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Chats"),
+        title: AppHeader(text: "Chats"),
+        backgroundColor: Colors.white,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.grey, // Choose your color
+                  width: 1.0, // Choose your thickness
+                ),
+              ),
+            ),
+          ),
+        ),
         actions: [
           PopupMenuButton<MenuItem>(
+            icon: const Icon(Icons.more_vert),
             onSelected: (MenuItem result) {
-              // Handle the selected menu item
               if (result == MenuItem.profile) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (ctx) => ProfileDetailScreen()),
                 );
               } else if (result == MenuItem.logout) {
-                FirebaseAuth.instance.signOut();
-                ref
-                    .read(userProvider.notifier)
-                    .saveUserData(
-                      UserData(
-                        uid: "",
-                        name: "",
-                        imageUrl: "",
-                        status: "",
-                        email: "",
-                        online: false,
-                        lastSeenOnline: 0,
-                      ),
-                    );
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (ctx) => LoginScreen()),
-                );
+                _logout();
               }
             },
             itemBuilder:
@@ -210,25 +178,18 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed:
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (ctx) => NewChatScreen()),
+            ),
+        tooltip: 'Add Item',
+        child: const Icon(Icons.add), // Optional: for accessibility
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (ctx) => NewChatScreen()),
-              );
-            },
-            child: Container(
-              margin: EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                "New Chat",
-                textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-          ),
           Consumer(
             builder: (consumerContext, ref, child) {
               List<GroupData> data =
@@ -248,26 +209,7 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
               if (data.isNotEmpty) {
                 return Expanded(
                   child: ListView.separated(
-                    itemBuilder:
-                        (ctx, index) => ChatsListItem(
-                          item: data[index],
-                          onSelectItem: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (ctx) => ChatMessageScreen(
-                                      groupId: data[index].groupId,
-                                      chatType:
-                                          data[index].group == true
-                                              ? DaialogType.groupChat
-                                              : DaialogType.oneOnOneChat,
-                                      fromRoute: "ChatsScreen",
-                                    ),
-                              ),
-                            );
-                          },
-                        ),
+                    itemBuilder: (ctx, index) => renderItem(data[index]),
                     itemCount: data.length,
                     separatorBuilder: (BuildContext context, int index) {
                       return Divider(
@@ -287,6 +229,49 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _logout() {
+    FirebaseAuth.instance.signOut();
+    ref
+        .read(userProvider.notifier)
+        .saveUserData(
+          UserData(
+            uid: "",
+            name: "",
+            imageUrl: "",
+            status: "",
+            email: "",
+            online: false,
+            lastSeenOnline: 0,
+          ),
+        );
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (ctx) => LoginScreen()),
+    );
+  }
+
+  Widget renderItem(GroupData item) {
+    return ChatsListItem(
+      item: item,
+      onSelectItem: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (ctx) => ChatMessageScreen(
+                  groupId: item.groupId,
+                  chatType:
+                      item.group == true
+                          ? DaialogType.groupChat
+                          : DaialogType.oneOnOneChat,
+                  fromRoute: "ChatsScreen",
+                ),
+          ),
+        );
+      },
     );
   }
 }

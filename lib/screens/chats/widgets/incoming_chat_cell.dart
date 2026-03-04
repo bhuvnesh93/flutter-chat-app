@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:chat_app/constants/constants.dart';
 import 'package:chat_app/models/message.dart';
 import 'package:chat_app/models/user.dart';

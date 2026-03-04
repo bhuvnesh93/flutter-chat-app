@@ -9,9 +9,9 @@ class SplashScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userData = ref.watch(userProvider);
+    final userData = ref.watch(userProvider).user;
 
-    if (userData.user.uid != "") {
+    if (userData.uid != "") {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => ChatsScreen()),

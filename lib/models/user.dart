@@ -56,4 +56,16 @@ class UserData {
       lastSeenOnline: json["lastSeenOnline"],
     );
   }
+
+  factory UserData.fromMap(Map<String, dynamic> map) {
+    return UserData(
+      uid: map["uid"] ?? "",
+      name: map["name"] ?? "",
+      imageUrl: map["image_url"] ?? "",
+      status: "",
+      email: map["email"] ?? "",
+      online: map["online"] ?? false,
+      lastSeenOnline: map["last_seen_online"] ?? 0,
+    );
+  }
 }

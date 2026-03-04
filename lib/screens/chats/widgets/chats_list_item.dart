@@ -1,13 +1,12 @@
-import 'dart:developer';
-
-import 'package:chat_app/constants/constants.dart';
+import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/models/group.dart';
+import 'package:chat_app/models/user.dart';
 import 'package:chat_app/provider/chat_provider.dart';
 import 'package:chat_app/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ChatsListItem extends ConsumerStatefulWidget {
+class ChatsListItem extends ConsumerWidget {
   const ChatsListItem({
     super.key,
     required this.item,
@@ -18,62 +17,47 @@ class ChatsListItem extends ConsumerStatefulWidget {
   final Function() onSelectItem;
 
   @override
-  ConsumerState<ChatsListItem> createState() => _ChatsListItemState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final usersList = ref.watch(chatProvider).usersList;
+    UserData userData = ref.read(userProvider).user;
+    String groupName = "";
+    String groupImage = "";
 
-class _ChatsListItemState extends ConsumerState<ChatsListItem> {
-  String _groupName = "";
-
-  void _calculateGroupName() {
-    var data = widget.item;
-    final userDataProviderRef = ref.read(userProvider).user;
-    final chatProviderRef = ref.read(chatProvider).usersList;
-    if (data.group == false) {
-      List<String> arr = data.groupId.split("_");
-      String otherUserId = arr.firstWhere(
-        (id) => id != userDataProviderRef.uid,
-      );
-      final otherUser = chatProviderRef.firstWhere(
+    if (item.group == false) {
+      List<String> arr = item.groupId.split("_");
+      String otherUserId = arr.firstWhere((id) => id != userData.uid);
+      final otherUser = usersList.firstWhere(
         (userItem) => userItem.uid == otherUserId,
       );
       if (otherUser.uid.isNotEmpty) {
-        _groupName = otherUser.name;
+        groupName = otherUser.name;
+        groupImage = otherUser.imageUrl;
       }
     } else {
-      _groupName = data.name;
+      groupName = item.name;
+      groupImage = item.imageUrl;
     }
-  }
 
-  @override
-  void initState() {
-    super.initState();
-
-    _calculateGroupName();
-  }
-
-  @override
-  void didUpdateWidget(covariant ChatsListItem oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    _calculateGroupName();
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return ListTile(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
       contentPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       leading: CircleAvatar(
-        radius: 22,
+        radius: 30,
         backgroundImage:
-            widget.item.group == true
+            groupImage != ""
+                ? NetworkImage(groupImage)
+                : item.group == true
                 ? AssetImage("assets/images/default_group.png")
                 : AssetImage("assets/images/default_profile.png"),
       ),
-      title: Text(_groupName, style: TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(widget.item.lastMessage?.message ?? ""),
-      // trailing: Text("0"),
-      onTap: widget.onSelectItem,
+      title: Text(groupName, style: ConstantStyles.bold.copyWith(fontSize: 17)),
+      subtitle: Text(
+        item.lastMessage?.message ?? "",
+        style: ConstantStyles.regular.copyWith(
+          fontSize: 16,
+          color: Colors.black,
+        ),
+      ),
+      onTap: onSelectItem,
     );
   }
 }
