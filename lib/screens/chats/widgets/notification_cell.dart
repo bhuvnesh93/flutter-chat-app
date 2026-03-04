@@ -1,5 +1,6 @@
 import 'package:chat_app/constants/constants.dart';
 import 'package:chat_app/models/message.dart';
+import 'package:chat_app/models/user.dart';
 import 'package:chat_app/provider/chat_provider.dart';
 import 'package:chat_app/provider/user_provider.dart';
 import 'package:flutter/material.dart';
@@ -22,52 +23,58 @@ class _NotificationCellState extends ConsumerState<NotificationCell> {
   void initState() {
     super.initState();
 
-    final MessageData item = widget.item;
-
     final userData = ref.read(userProvider).user;
     final usersList = ref.read(chatProvider).usersList;
 
-    String name =
-        usersList
-            .firstWhere((element) => element.uid == widget.item.senderId)
-            .name;
-    setState(() {
-      _userName = name;
-    });
+    if (widget.item.senderId == userData.uid) {
+      _userName = 'You';
+    } else {
+      UserData user = usersList.firstWhere(
+        (element) => element.uid == widget.item.senderId,
+      );
+      _userName = user.name;
+    }
 
-    if (item.messageId.isNotEmpty) {
-      if (item.messageType == MessageType.newGroup) {
-        if (item.senderId == userData.uid) {
-          setState(() {
-            _message = "You created this group";
-          });
-        } else {
-          setState(() {
-            _message = "$_userName created this group";
-          });
-        }
-      } else if (item.messageType == MessageType.addMember) {
+    if (widget.item.messageId.isNotEmpty) {
+      if (widget.item.messageType == MessageType.newGroup) {
+        _message = "$_userName created this group";
+      } else if (widget.item.messageType == MessageType.addMember) {
         String membersName = '';
-        if (item.members!.length > 1) {
-          if (item.members!.length - 1 > 1) {
-            membersName =
-                "${item.members[0]["name"]} and ${item.members!.length - 1} others";
+        if (widget.item.members.length > 1) {
+          // if (widget.item.members.length - 1 > 1) {
+          UserData user = usersList.firstWhere(
+            (element) => element.uid == widget.item.members[0]["uid"],
+          );
+          membersName =
+              "${user.name} and ${widget.item.members.length - 1} others";
+          // } else {
+          //   membersName =
+          //       "${widget.item.members[0]["name"]} and ${widget.item.members.length - 1} other";
+          // }
+        } else {
+          if (widget.item.members[0]["uid"] == userData.uid) {
+            membersName = 'You';
           } else {
-            membersName =
-                "${item.members[0]["name"]} and ${item.members!.length - 1} other";
+            UserData user = usersList.firstWhere(
+              (element) => element.uid == widget.item.members[0]["uid"],
+            );
+            membersName = user.name;
           }
-        } else {
-          membersName = "${item.members![0]["name"]}";
         }
-        if (item.senderId == userData.uid) {
-          setState(() {
-            _message = "You added $membersName";
-          });
+        _message = "$_userName added $membersName";
+      } else if (widget.item.messageType == MessageType.removeMember) {
+        String membersName = '';
+
+        if (widget.item.members[0]["uid"] == userData.uid) {
+          membersName = 'You';
         } else {
-          setState(() {
-            _message = "$_userName added $membersName";
-          });
+          UserData user = usersList.firstWhere(
+            (element) => element.uid == widget.item.members[0]["uid"],
+          );
+          membersName = user.name;
         }
+
+        _message = "$_userName removed $membersName";
       }
     }
   }

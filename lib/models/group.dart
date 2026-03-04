@@ -1,9 +1,3 @@
-import 'dart:convert';
-
-GroupData groupDataFromJson(String str) => GroupData.fromJson(json.decode(str));
-
-String groupDataToJson(GroupData data) => json.encode(data.toJson());
-
 class GroupData {
   final String groupId;
   final String imageUrl;
@@ -27,29 +21,12 @@ class GroupData {
     required this.timestamp,
   });
 
-  factory GroupData.fromJson(Map<String, dynamic> json) => GroupData(
-    groupId: json["group_id"],
-    imageUrl: json["image_url"],
-    members: Map.from(
-      json["members"],
-    ).map((k, v) => MapEntry<String, Member>(k, Member.fromJson(v))),
-    lastMessage:
-        json["lastMessage"] != null
-            ? LastMessage.fromJson(json["lastMessage"])
-            : null,
-    name: json["name"],
-    createdBy: json["created_by"],
-    groupDeleted: json["group_deleted"],
-    group: json["group"],
-    timestamp: json["timestamp"],
-  );
-
   Map<String, dynamic> toJson() => {
     "group_id": groupId,
     "image_url": imageUrl,
-    // "members": Map.from(
-    //   members,
-    // ).map((k, v) => MapEntry<String, dynamic>(k, v.toJson())),
+    "members": Map.from(
+      members,
+    ).map((k, v) => MapEntry<String, dynamic>(k, v.toJson())),
     "lastMessage": lastMessage!.toJson(),
     "name": name,
     "created_by": createdBy,
@@ -57,6 +34,28 @@ class GroupData {
     "group": group,
     "timestamp": timestamp,
   };
+
+  factory GroupData.fromMap(Map<String, dynamic> map) {
+    return GroupData(
+      groupId: map["group_id"] ?? "",
+      imageUrl: map["image_url"] ?? "",
+      members: Map.from(map["members"] ?? {}).map(
+        (k, v) => MapEntry<String, Member>(
+          k,
+          Member.fromMap(v.cast<String, dynamic>()),
+        ),
+      ),
+      lastMessage:
+          map["lastMessage"] != null
+              ? LastMessage.fromMap(map["lastMessage"].cast<String, dynamic>())
+              : null,
+      name: map["name"] ?? "",
+      createdBy: map["created_by"] ?? "",
+      groupDeleted: map["group_deleted"] ?? false,
+      group: map["group"] ?? false,
+      timestamp: map["timestamp"] ?? 0,
+    );
+  }
 }
 
 class LastMessage {
@@ -76,15 +75,6 @@ class LastMessage {
     required this.timestamp,
   });
 
-  factory LastMessage.fromJson(Map<String, dynamic> json) => LastMessage(
-    messageId: json["message_id"] ?? "",
-    messageType: json["message_type"] ?? "",
-    message: json["message"] ?? "",
-    type: json["type"] ?? "",
-    senderId: json["sender_id"] ?? "",
-    timestamp: json["timestamp"] ?? 0,
-  );
-
   Map<String, dynamic> toJson() => {
     "message_id": messageId,
     "message_type": messageType,
@@ -93,6 +83,15 @@ class LastMessage {
     "sender_id": senderId,
     "timestamp": timestamp,
   };
+
+  factory LastMessage.fromMap(Map<String, dynamic> map) => LastMessage(
+    messageId: map["message_id"] ?? "",
+    messageType: map["message_type"] ?? "",
+    message: map["message"] ?? "",
+    type: map["type"] ?? "",
+    senderId: map["sender_id"] ?? "",
+    timestamp: map["timestamp"] ?? 0,
+  );
 }
 
 class Member {
@@ -112,15 +111,6 @@ class Member {
     required this.admin,
   });
 
-  factory Member.fromJson(Map<String, dynamic> json) => Member(
-    unreadGroupCount: json["unread_group_count"],
-    uid: json["uid"],
-    active: json["active"],
-    deleteTill: json["delete_till"],
-    lastSeenMessageTimestamp: json["last_seen_message_timestamp"],
-    admin: json["admin"],
-  );
-
   Map<String, dynamic> toJson() => {
     "unread_group_count": unreadGroupCount,
     "uid": uid,
@@ -129,4 +119,13 @@ class Member {
     "last_seen_message_timestamp": lastSeenMessageTimestamp,
     // "admin": admin,
   };
+
+  factory Member.fromMap(Map<String, dynamic> map) => Member(
+    unreadGroupCount: map["unread_group_count"],
+    uid: map["uid"],
+    active: map["active"],
+    deleteTill: map["delete_till"],
+    lastSeenMessageTimestamp: map["last_seen_message_timestamp"],
+    admin: map["admin"],
+  );
 }

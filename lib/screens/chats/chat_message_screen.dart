@@ -40,22 +40,22 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
   final _messageController = TextEditingController();
   String _title = "User";
   String _status = "Online";
-  bool _isSelfUserAdmin = false;
+  String _image = "";
+  // final bool _isSelfUserAdmin = false;
+  late UserData _userData;
+  late String _uid;
 
-  void checkGroupExist() {
-    final userData = ref.read(userProvider).user;
-    final uid = userData.uid;
+  void _checkGroupExist() {
     Map<String, GroupData> userChatGroups =
         ref.read(chatProvider).userChatGroups;
     _isGroupExist = userChatGroups.containsKey(widget.groupId);
-    print("dsdsd ${userChatGroups[widget.groupId]!.members[uid]?.admin}");
     if (_isGroupExist) {
       // _isSelfUserAdmin = userChatGroups[widget.groupId]?.members[uid]!.admin;
-      _deleteTill = userChatGroups[widget.groupId]!.members[uid]!.deleteTill;
+      _deleteTill = userChatGroups[widget.groupId]!.members[_uid]!.deleteTill;
     }
   }
 
-  void fetchAllMessages() {
+  void _fetchAllMessages() {
     if (_deleteTill > 0) {
       FirebaseDatabase.instance
           .ref("/chat/messages")
@@ -66,29 +66,21 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
             Map<String, dynamic> myData = Map<String, dynamic>.from(
               dataSnapshot.value as Map,
             );
-            List<MessageData> data1 =
+            List<MessageData> list =
                 myData.values
                     .map(
-                      (entry) => MessageData(
-                        messageId: entry["message_id"],
-                        messageType: entry["message_type"],
-                        senderId: entry["sender_id"],
-                        type: entry["type"],
-                        timestamp: entry["timestamp"],
-                        message: entry?["message"] ?? "",
-                        members: entry?["members"] ?? [],
-                      ),
+                      (map) => MessageData.fromMap(map.cast<String, dynamic>()),
                     )
                     .toList();
-            data1.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+            list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
             setState(() {
-              _messageList = data1;
+              _messageList = list;
             });
           });
     }
   }
 
-  void fetchNewMessage() {
+  void _fetchNewMessage() {
     if (_deleteTill > 0) {
       FirebaseDatabase.instance
           .ref("/chat/messages")
@@ -104,15 +96,8 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
               List<MessageData> lastMessage =
                   messageModel.values
                       .map(
-                        (entry) => MessageData(
-                          messageId: entry["message_id"],
-                          messageType: entry["message_type"],
-                          senderId: entry["sender_id"],
-                          type: entry["type"],
-                          timestamp: entry["timestamp"],
-                          message: entry["message"] ?? "",
-                          members: entry?["members"] ?? [],
-                        ),
+                        (entry) =>
+                            MessageData.fromMap(entry.cast<String, dynamic>()),
                       )
                       .toList();
               if (lastMessage[0].timestamp > _deleteTill) {
@@ -127,8 +112,7 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
     }
   }
 
-  void prepareMessage(String messageType) {
-    final userData = ref.read(userProvider).user;
+  void _prepareMessage(String messageType) {
     int timestamp = DateTime.now().millisecondsSinceEpoch;
     String? messageId =
         FirebaseDatabase.instance
@@ -138,7 +122,7 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
             .key;
     Map<String, dynamic> messageObj = {
       "message": _messageController.text,
-      "sender_id": userData.uid,
+      "sender_id": _uid,
       "timestamp": timestamp,
       "message_id": messageId,
       "message_type": messageType,
@@ -156,32 +140,79 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
         .child(messageId!)
         .set(messageObj)
         .then((onValue) {
-          _messageController.clear();
+          if (mounted) {
+            _messageController.clear();
+          }
         });
   }
 
-  void createOneOnOneChatGroup(UserData user, UserData otherUse, callback) {
-    //
+  void _createOneOnOneChatGroup(UserData user, UserData otherUser) {
+    int timestamp = DateTime.now().millisecondsSinceEpoch;
+    var groupMembers = {};
+    Map<String, dynamic> otherUserModel = {
+      "unread_group_count": 0,
+      "last_seen_message_timestamp": timestamp,
+      "uid": otherUser.uid,
+      "delete_till": timestamp,
+      "active": true,
+    };
+    groupMembers[otherUserModel["uid"]] = otherUserModel;
+
+    Map<String, dynamic> userModel = {
+      "unread_group_count": 0,
+      "last_seen_message_timestamp": timestamp,
+      "uid": user.uid,
+      "delete_till": timestamp,
+      "active": true,
+    };
+    groupMembers[userModel["uid"]] = userModel;
+
+    String groupId = generatePrivateChatId(user.uid, otherUser.uid);
+    Map<String, dynamic> newGroup = {
+      "group": false,
+      "name": "",
+      "image_url": "",
+      "group_deleted": false,
+      "members": groupMembers,
+      "created_by": userModel["uid"],
+      "group_id": groupId,
+      "timestamp": timestamp,
+    };
+    FirebaseDatabase.instance
+        .ref("/chat/group")
+        .child(groupId)
+        .set(newGroup)
+        .then((onValue) {
+          newGroup["members"].keys.forEach((key) {
+            FirebaseDatabase.instance
+                .ref("/chat/users")
+                .child(key)
+                .child("group")
+                .child(groupId)
+                .set(true)
+                .then((onValue) {
+                  if (mounted) {
+                    _prepareMessage(MessageType.text);
+                  }
+                });
+          });
+        });
   }
 
-  void onSendMessage() {
-    if (_isGroupExist) {
-      prepareMessage(MessageType.text);
+  void _onSendMessage(usersList) {
+    if (_messageController.text.isEmpty) {
+      print("message empty");
     } else {
-      final userData = ref.read(userProvider).user;
-      final usersList = ref.read(chatProvider).usersList;
-      List<String> arr = widget.groupId.split("_");
-      String otherUserId = arr.firstWhere((id) => id != userData.uid);
-      final otherUser = usersList.firstWhere(
-        (userItem) => userItem.uid == otherUserId,
-      );
-      createOneOnOneChatGroup(
-        userData,
-        otherUser,
-        () => {
-          // prepareMessage({message, messageType: '1'}),
-        },
-      );
+      if (_isGroupExist) {
+        _prepareMessage(MessageType.text);
+      } else {
+        List<String> arr = widget.groupId.split("_");
+        String otherUserId = arr.firstWhere((id) => id != _uid);
+        final otherUser = usersList.firstWhere(
+          (userItem) => userItem.uid == otherUserId,
+        );
+        _createOneOnOneChatGroup(_userData, otherUser);
+      }
     }
   }
 
@@ -189,11 +220,14 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
   void initState() {
     super.initState();
 
-    checkGroupExist();
+    _userData = ref.read(userProvider).user;
+    _uid = _userData.uid;
 
-    fetchAllMessages();
+    _checkGroupExist();
 
-    fetchNewMessage();
+    _fetchAllMessages();
+
+    _fetchNewMessage();
   }
 
   @override
@@ -202,13 +236,11 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
   }
 
   Widget renderItem(MessageData item) {
-    final userData = ref.read(userProvider).user;
-    final uid = userData.uid;
     if (item.type == ChatType.groupNotification) {
       return NotificationCell(item: item);
-    } else if (item.senderId == uid) {
+    } else if (item.senderId == _uid) {
       return OutgoingChatCell(item: item);
-    } else if (item.senderId != uid) {
+    } else if (item.senderId != _uid) {
       return IncomingChatCell(item: item, chatType: widget.chatType);
     }
     return Text("");
@@ -217,16 +249,22 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
   @override
   Widget build(BuildContext context) {
     final usersList = ref.watch(chatProvider).usersList;
-    var chatGroups = ref.watch(chatProvider).userChatGroups;
+    final userChatGroups = ref.watch(chatProvider).userChatGroups;
+
+    _isGroupExist = userChatGroups.containsKey(widget.groupId);
+    if (_isGroupExist) {
+      // _isSelfUserAdmin = userChatGroups[widget.groupId]?.members[uid]!.admin;
+      _deleteTill = userChatGroups[widget.groupId]!.members[_uid]!.deleteTill;
+    }
 
     if (widget.chatType == DaialogType.oneOnOneChat) {
-      final userData = ref.read(userProvider).user;
       List<String> arr = widget.groupId.split("_");
-      String otherUserId = arr.firstWhere((id) => id != userData.uid);
+      String otherUserId = arr.firstWhere((id) => id != _uid);
       final otherUser = usersList.firstWhere(
         (userItem) => userItem.uid == otherUserId,
       );
       _title = otherUser.name;
+      _image = otherUser.imageUrl;
       _status =
           otherUser.online
               ? "Online"
@@ -234,18 +272,33 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
               ? "Last seen ${chatIsTodayHeader(otherUser.lastSeenOnline) ? chatFormatTimeAMPM(otherUser.lastSeenOnline) : chatFormatDateDDMonthYYYY(chatFormatDate(otherUser.lastSeenOnline))}"
               : "Offline";
     } else {
-      var groupDetail = chatGroups[widget.groupId];
+      var groupDetail = userChatGroups[widget.groupId];
       _title = groupDetail!.name;
+      _image = groupDetail.imageUrl;
       _status = "${groupDetail.members.length} Members";
     }
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.grey, // Choose your color
+                  width: 1.0, // Choose your thickness
+                ),
+              ),
+            ),
+          ),
+        ),
         leading: BackButton(
           onPressed: () {
             if (widget.fromRoute == "CREATE_GROUP") {
               Navigator.popUntil(context, ModalRoute.withName("/ChatsScreen"));
-            } else if (widget.fromRoute == "ChatsScreen") {
+            } else {
               Navigator.pop(context);
             }
           },
@@ -253,9 +306,14 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
         title: InkWell(
           onTap: () {
             if (widget.chatType == DaialogType.oneOnOneChat) {
+              final arr = widget.groupId.split('_');
+              final otherUserId = arr.firstWhere((id) => id != _uid);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (ctx) => OtherUserProfileScreen()),
+                MaterialPageRoute(
+                  builder:
+                      (ctx) => OtherUserProfileScreen(otherUserId: otherUserId),
+                ),
               );
             } else {
               Navigator.push(
@@ -271,12 +329,14 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
               CircleAvatar(
                 radius: 22,
                 backgroundImage:
-                    widget.chatType == DaialogType.oneOnOneChat
+                    _image != ""
+                        ? NetworkImage(_image)
+                        : widget.chatType == DaialogType.oneOnOneChat
                         ? AssetImage("assets/images/default_profile.png")
                         : AssetImage("assets/images/default_group.png"),
               ),
               Container(
-                margin: EdgeInsets.only(left: 8.0),
+                margin: EdgeInsets.only(left: 12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -291,42 +351,6 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
             ],
           ),
         ),
-        actions: [
-          PopupMenuButton<MenuItem>(
-            onSelected: (MenuItem result) {
-              if (result == MenuItem.clearChat) {
-                //
-              } else if (result == MenuItem.exitGroup) {
-                //
-              } else if (result == MenuItem.deleteGroup) {
-                //
-              }
-            },
-            itemBuilder:
-                (BuildContext context) => <PopupMenuEntry<MenuItem>>[
-                  if (widget.chatType == DaialogType.oneOnOneChat)
-                    const PopupMenuItem<MenuItem>(
-                      value: MenuItem.clearChat,
-                      child: Text('Clear Chat'),
-                    ),
-                  if (widget.chatType == DaialogType.groupChat &&
-                      _isSelfUserAdmin) ...[
-                    const PopupMenuItem<MenuItem>(
-                      value: MenuItem.clearChat,
-                      child: Text('Clear Chat'),
-                    ),
-                    const PopupMenuItem<MenuItem>(
-                      value: MenuItem.exitGroup,
-                      child: Text('Exit group'),
-                    ),
-                    const PopupMenuItem<MenuItem>(
-                      value: MenuItem.deleteGroup,
-                      child: Text('Delete Group'),
-                    ),
-                  ],
-                ],
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -361,7 +385,7 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
                 ),
                 SizedBox(width: 20),
                 TextButton(
-                  onPressed: () => onSendMessage(),
+                  onPressed: () => _onSendMessage(usersList),
                   child: Center(child: Text("Send")),
                 ),
               ],

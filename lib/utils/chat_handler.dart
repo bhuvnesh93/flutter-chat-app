@@ -4,6 +4,18 @@ String uId(uid) {
   return 'uid-$uid';
 }
 
+String generatePrivateChatId(selfUserId, otherUserId) {
+  String aTemp = selfUserId.replaceFirst('uid-', '');
+  String bTemp = otherUserId.replaceFirst('uid-', '');
+  String id = '';
+  if (aTemp.compareTo(bTemp) > 0) {
+    id = '${otherUserId}_$selfUserId';
+  } else {
+    id = '${selfUserId}_$otherUserId';
+  }
+  return id;
+}
+
 bool chatIsTodayHeader(milliseconds) {
   DateTime date = DateTime.fromMillisecondsSinceEpoch(milliseconds);
   String formattedDate = DateFormat('yyyy-MM-dd').format(date);
