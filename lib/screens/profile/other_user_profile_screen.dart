@@ -1,3 +1,4 @@
+import 'package:chat_app/constants/app_colors.dart';
 import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/provider/chat_provider.dart';
 import 'package:chat_app/widgets/app_header.dart';
@@ -23,10 +24,10 @@ class OtherUserProfileScreen extends ConsumerWidget {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: Colors.grey, // Choose your color
+                  color: AppColors.greyColor,
                   width: 1.0, // Choose your thickness
                 ),
               ),

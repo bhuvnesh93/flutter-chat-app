@@ -1,5 +1,7 @@
+import 'package:chat_app/constants/app_colors.dart';
 import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/provider/user_provider.dart';
+import 'package:chat_app/utils/utils.dart';
 import 'package:chat_app/widgets/app_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +16,7 @@ class ProfileDetailScreen extends ConsumerWidget {
       imageQuality: 50,
       maxWidth: 150,
     );
-    print('image : ${pickedImage!.path}');
+    logging('image : ${pickedImage!.path}');
   }
 
   void _handleImageCapture() async {
@@ -23,7 +25,7 @@ class ProfileDetailScreen extends ConsumerWidget {
       imageQuality: 50,
       maxWidth: 150,
     );
-    print('image : ${pickedImage!.path}');
+    logging('image : ${pickedImage!.path}');
   }
 
   @override
@@ -33,16 +35,13 @@ class ProfileDetailScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: AppHeader(text: "Profile"),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.whiteColor,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey, // Choose your color
-                  width: 1.0, // Choose your thickness
-                ),
+                bottom: BorderSide(color: AppColors.greyColor, width: 1.0),
               ),
             ),
           ),

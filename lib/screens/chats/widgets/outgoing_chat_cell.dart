@@ -1,3 +1,5 @@
+import 'package:chat_app/constants/app_colors.dart';
+import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/models/message.dart';
 import 'package:chat_app/utils/chat_handler.dart';
 import 'package:flutter/material.dart';
@@ -19,10 +21,10 @@ class _OutgoingChatCellState extends State<OutgoingChatCell> {
       child: IntrinsicWidth(
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.blue,
-            borderRadius: BorderRadius.circular(16.0),
+            color: AppColors.outgoingChatCell,
+            borderRadius: BorderRadius.circular(8.0),
           ),
-          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
           margin: EdgeInsets.only(top: 5, bottom: 5),
           // width: MediaQuery.of(context).size.width * 70 / 100,
           constraints: BoxConstraints(
@@ -36,15 +38,18 @@ class _OutgoingChatCellState extends State<OutgoingChatCell> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.item.message,
-                style: TextStyle(fontSize: 16, color: Colors.white),
+                widget.item.message!,
+                style: ConstantStyles.medium.copyWith(fontSize: 16),
               ),
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
                   chatFormatTimeAMPM(widget.item.timestamp),
                   textAlign: TextAlign.right,
-                  style: TextStyle(fontSize: 14, color: Colors.white),
+                  style: ConstantStyles.medium.copyWith(
+                    fontSize: 13,
+                    color: AppColors.greyColor,
+                  ),
                 ),
               ),
             ],
