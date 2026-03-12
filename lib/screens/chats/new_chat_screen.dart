@@ -1,3 +1,4 @@
+import 'package:chat_app/constants/app_colors.dart';
 import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/constants/constants.dart';
 import 'package:chat_app/provider/chat_provider.dart';
@@ -20,14 +21,14 @@ class NewChatScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: AppHeader(text: "New Chat"),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.whiteColor,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: Colors.grey, // Choose your color
+                  color: AppColors.greyColor,
                   width: 1.0, // Choose your thickness
                 ),
               ),
@@ -53,7 +54,7 @@ class NewChatScreen extends ConsumerWidget {
               backgroundColor: Colors.black,
               child: CircleAvatar(
                 radius: 22,
-                backgroundColor: Colors.white,
+                backgroundColor: AppColors.whiteColor,
                 child: Icon(Icons.group, size: 30.0),
               ),
             ),
@@ -64,7 +65,7 @@ class NewChatScreen extends ConsumerWidget {
           ),
           Divider(
             height: 1, // Height of the divider
-            color: Colors.grey, // Color of the divider
+            color: AppColors.greyColor,
             thickness: 1, // Thickness of the divider line
             indent: 16, // Left padding
             endIndent: 16, // Right padding
@@ -101,7 +102,7 @@ class NewChatScreen extends ConsumerWidget {
                   separatorBuilder: (BuildContext context, int index) {
                     return Divider(
                       height: 1, // Height of the divider
-                      color: Colors.grey, // Color of the divider
+                      color: AppColors.greyColor,
                       thickness: 1, // Thickness of the divider line
                       indent: 16, // Left padding
                       endIndent: 16, // Right padding

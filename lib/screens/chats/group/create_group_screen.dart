@@ -1,11 +1,16 @@
+import 'package:chat_app/constants/app_colors.dart';
 import 'package:chat_app/constants/constants.dart';
+import 'package:chat_app/models/group.dart';
+import 'package:chat_app/models/message.dart';
 import 'package:chat_app/models/user.dart';
 import 'package:chat_app/provider/user_provider.dart';
 import 'package:chat_app/screens/chats/chat_message_screen.dart';
+import 'package:chat_app/widgets/app_button.dart';
 import 'package:chat_app/widgets/app_header.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:toastification/toastification.dart';
 
 class CreateGroupScreen extends ConsumerStatefulWidget {
   const CreateGroupScreen({super.key, required this.selectedMember});
@@ -18,47 +23,80 @@ class CreateGroupScreen extends ConsumerStatefulWidget {
 
 class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   final _groupNameController = TextEditingController();
+  bool _isLoading = false;
 
   void _createGroup() {
+    setState(() {
+      _isLoading = true;
+    });
     int timestamp = DateTime.now().millisecondsSinceEpoch;
-    final userData = ref.read(userProvider).user;
-    Map<String, dynamic> adminUserModel = {
-      "unread_group_count": 0,
-      "last_seen_message_timestamp": timestamp,
-      "uid": userData.uid,
-      "delete_till": timestamp,
-      "admin": true,
-      "active": true,
-    };
     var membersArr = [];
-    var groupMembers = {};
+    Map<String, dynamic> groupMembers = {};
+    final userData = ref.read(userProvider).user;
+    Member adminUserModel = Member(
+      unreadGroupCount: 0,
+      uid: userData.uid,
+      active: true,
+      deleteTill: timestamp,
+      lastSeenMessageTimestamp: timestamp,
+      admin: true,
+    );
+    groupMembers[adminUserModel.uid] = adminUserModel.toMap();
+    // Map<String, dynamic> adminUserModel = {
+    //   "unread_group_count": 0,
+    //   "last_seen_message_timestamp": timestamp,
+    //   "uid": userData.uid,
+    //   "delete_till": timestamp,
+    //   "admin": true,
+    //   "active": true,
+    // };
+    // groupMembers[adminUserModel["uid"]] = adminUserModel;
     for (var element in widget.selectedMember) {
       membersArr.add({"uid": element.uid});
-      Map<String, dynamic> otherUserModel = {
-        "unread_group_count": 0,
-        "last_seen_message_timestamp": timestamp,
-        "uid": element.uid,
-        "delete_till": timestamp,
-        "admin": false,
-        "active": true,
-      };
-      groupMembers[otherUserModel["uid"]] = otherUserModel;
+      Member otherUserModel = Member(
+        unreadGroupCount: 0,
+        uid: element.uid,
+        active: true,
+        deleteTill: timestamp,
+        lastSeenMessageTimestamp: timestamp,
+        admin: false,
+      );
+      groupMembers[otherUserModel.uid] = otherUserModel.toMap();
+      // Map<String, dynamic> otherUserModel = {
+      //   "unread_group_count": 0,
+      //   "last_seen_message_timestamp": timestamp,
+      //   "uid": element.uid,
+      //   "delete_till": timestamp,
+      //   "admin": false,
+      //   "active": true,
+      // };
+      // groupMembers[otherUserModel["uid"]] = otherUserModel;
     }
-    groupMembers[adminUserModel["uid"]] = adminUserModel;
     String? groupId = FirebaseDatabase.instance.ref("/chat/group").push().key;
-    Map<String, dynamic> newGroup = {
-      "group": true,
-      "name": _groupNameController.text,
-      "image_url": "",
-      "group_deleted": false,
-      "members": groupMembers,
-      "created_by": adminUserModel["uid"],
-      "group_id": groupId,
-      "timestamp": timestamp,
-    };
+    // Map<String, dynamic> newGroup = {
+    //   "group": true,
+    //   "name": _groupNameController.text,
+    //   "image_url": "",
+    //   "group_deleted": false,
+    //   "members": groupMembers,
+    //   "created_by": adminUserModel["uid"],
+    //   "group_id": groupId,
+    //   "timestamp": timestamp,
+    // };
+    GroupData groupData = GroupData(
+      groupId: groupId!,
+      imageUrl: "",
+      members: groupMembers,
+      name: _groupNameController.text,
+      createdBy: adminUserModel.uid,
+      groupDeleted: false,
+      group: true,
+      timestamp: timestamp,
+    );
+    final newGroup = groupData.toMap();
     FirebaseDatabase.instance
         .ref("/chat/group")
-        .child(groupId!)
+        .child(groupId)
         .set(newGroup)
         .then((onValue) {
           newGroup["members"].keys.forEach((key) {
@@ -78,18 +116,28 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                   .child(groupId)
                   .push()
                   .key;
-          Map<String, dynamic> messageModel = {
-            "sender_id": userData.uid,
-            "timestamp": timestamp,
-            "message_id": messageId,
-            "message_type": MessageType.newGroup,
-            "type": ChatType.groupNotification,
-            "members": [""],
-          };
+          // Map<String, dynamic> messageModel = {
+          //   "sender_id": userData.uid,
+          //   "timestamp": timestamp,
+          //   "message_id": messageId,
+          //   "message_type": MessageType.newGroup,
+          //   "type": ChatType.groupNotification,
+          //   "members": [""],
+          // };
+          MessageData messageData = MessageData(
+            messageId: messageId!,
+            messageType: MessageType.newGroup,
+            senderId: userData.uid,
+            type: ChatType.groupNotification,
+            timestamp: timestamp,
+            message: "",
+            members: [],
+          );
+          final messageModel = messageData.toMap();
           FirebaseDatabase.instance
               .ref("/chat/messages")
               .child(groupId)
-              .child(messageId!)
+              .child(messageId)
               .set(messageModel)
               .then((onValue) {
                 String? messageId =
@@ -98,20 +146,33 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                         .child(groupId)
                         .push()
                         .key;
-                Map<String, dynamic> messageModel = {
-                  "sender_id": userData.uid,
-                  "timestamp": timestamp,
-                  "message_id": messageId,
-                  "message_type": MessageType.addMember,
-                  "type": ChatType.groupNotification,
-                  "members": membersArr,
-                };
+                MessageData messageData = MessageData(
+                  messageId: messageId!,
+                  messageType: MessageType.addMember,
+                  senderId: userData.uid,
+                  type: ChatType.groupNotification,
+                  timestamp: timestamp,
+                  members: membersArr,
+                  message: "",
+                );
+                final messageModel = messageData.toMap();
+                // Map<String, dynamic> messageModel = {
+                //   "sender_id": userData.uid,
+                //   "timestamp": timestamp,
+                //   "message_id": messageId,
+                //   "message_type": MessageType.addMember,
+                //   "type": ChatType.groupNotification,
+                //   "members": membersArr,
+                // };
                 FirebaseDatabase.instance
                     .ref("/chat/messages")
                     .child(groupId)
-                    .child(messageId!)
+                    .child(messageId)
                     .set(messageModel)
                     .then((onValue) {
+                      setState(() {
+                        _isLoading = false;
+                      });
                       if (mounted) {
                         Navigator.pushAndRemoveUntil(
                           context,
@@ -133,7 +194,15 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
 
   void _onPressCreateGroup() async {
     if (_groupNameController.text == "") {
-      //
+      toastification.show(
+        context: context,
+        type: ToastificationType.info,
+        title: Text('Enter Group Name'),
+        autoCloseDuration: const Duration(seconds: 3),
+        style: ToastificationStyle.minimal,
+        alignment: Alignment.bottomCenter,
+        direction: TextDirection.ltr,
+      );
     } else {
       _createGroup();
     }
@@ -156,12 +225,9 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
             1.0,
           ), // Define the height of the divider
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey, // Choose your color
-                  width: 1.0, // Choose your thickness
-                ),
+                bottom: BorderSide(color: AppColors.greyColor, width: 1.0),
               ),
             ),
           ),
@@ -179,7 +245,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                     backgroundColor: Colors.black,
                     child: CircleAvatar(
                       radius: 22,
-                      backgroundColor: Colors.white,
+                      backgroundColor: AppColors.whiteColor,
                       child: Icon(Icons.camera, size: 30.0),
                     ),
                   ),
@@ -196,53 +262,64 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                 ],
               ),
             ),
-            SizedBox(height: 20),
+            Divider(),
             Expanded(
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 5,
-                  // mainAxisSpacing: 10,
-                ),
-                // scrollDirection: Axis.horizontal,
-                itemBuilder:
-                    (ctx, index) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 23,
-                          backgroundImage: AssetImage(
-                            "assets/images/default_profile.png",
-                          ),
-                        ),
-                        SizedBox(height: 10),
-                        Text(
-                          widget.selectedMember[index].name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          softWrap: false,
-                        ),
-                      ],
-                    ),
-                itemCount: widget.selectedMember.length,
-              ),
-            ),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _onPressCreateGroup,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(0),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 5,
+                    // mainAxisSpacing: 10,
                   ),
+                  // scrollDirection: Axis.horizontal,
+                  itemBuilder:
+                      (ctx, index) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircleAvatar(
+                            radius: 23,
+                            backgroundImage: AssetImage(
+                              "assets/images/default_profile.png",
+                            ),
+                          ),
+                          SizedBox(height: 10),
+                          Text(
+                            widget.selectedMember[index].name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                          ),
+                        ],
+                      ),
+                  itemCount: widget.selectedMember.length,
                 ),
-                child: Text("CREATE"),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: AppButton(
+                text: "CREATE",
+                onPress: _onPressCreateGroup,
+                isLoading: _isLoading,
+              ),
+            ),
+            // SizedBox(
+            //   width: double.infinity,
+            //   height: 50,
+            //   child: ElevatedButton(
+            //     onPressed: _onPressCreateGroup,
+            //     style: ElevatedButton.styleFrom(
+            //       backgroundColor: AppColors.primaryColor,
+            //       foregroundColor: AppColors.whiteColor,
+            //       shape: RoundedRectangleBorder(
+            //         borderRadius: BorderRadius.circular(0),
+            //       ),
+            //     ),
+            //     child: Text("CREATE"),
+            //   ),
+            // ),
           ],
         ),
       ),

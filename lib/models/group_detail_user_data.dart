@@ -1,5 +1,5 @@
-class UserData {
-  const UserData({
+class GroupDetailUserData {
+  const GroupDetailUserData({
     required this.uid,
     required this.name,
     required this.imageUrl,
@@ -7,6 +7,7 @@ class UserData {
     required this.email,
     required this.online,
     required this.lastSeenOnline,
+    required this.admin,
   });
 
   final String uid;
@@ -15,6 +16,7 @@ class UserData {
   final String status;
   final String email;
   final bool online;
+  final bool admin;
   final int lastSeenOnline;
 
   Map<String, dynamic> toMap() {
@@ -26,6 +28,7 @@ class UserData {
       'online': online,
       'email': email,
       'last_seen_online': lastSeenOnline,
+      "admin": admin,
     };
   }
 
@@ -38,29 +41,19 @@ class UserData {
       'online': online,
       'email': email,
       'lastSeenOnline': lastSeenOnline,
+      "admin": admin,
     };
   }
 
-  factory UserData.fromJson(Map<String, dynamic> json) {
-    return UserData(
-      uid: json["uid"],
-      name: json["name"],
-      imageUrl: json["imageUrl"]!,
-      status: json["status"],
-      email: json["email"],
-      online: json["online"],
-      lastSeenOnline: json["lastSeenOnline"],
-    );
-  }
-
-  factory UserData.fromMap(Map<String, dynamic> map) {
-    return UserData(
+  factory GroupDetailUserData.fromMap(Map<String, dynamic> map) {
+    return GroupDetailUserData(
       uid: map["uid"] ?? "",
       name: map["name"] ?? "",
       imageUrl: map["image_url"] ?? "",
       status: "",
       email: map["email"] ?? "",
       online: map["online"] ?? false,
+      admin: map["admin"] ?? false,
       lastSeenOnline: map["last_seen_online"] ?? 0,
     );
   }

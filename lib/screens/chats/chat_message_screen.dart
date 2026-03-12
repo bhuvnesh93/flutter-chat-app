@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:chat_app/constants/app_colors.dart';
+import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/constants/constants.dart';
 import 'package:chat_app/models/group.dart';
 import 'package:chat_app/models/message.dart';
@@ -44,6 +48,7 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
   // final bool _isSelfUserAdmin = false;
   late UserData _userData;
   late String _uid;
+  StreamSubscription<DatabaseEvent>? _dataSubscription;
 
   void _checkGroupExist() {
     Map<String, GroupData> userChatGroups =
@@ -55,61 +60,56 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
     }
   }
 
-  void _fetchAllMessages() {
+  void _fetchAllMessages() async {
     if (_deleteTill > 0) {
-      FirebaseDatabase.instance
-          .ref("/chat/messages")
-          .child(widget.groupId)
-          .orderByChild("timestamp")
-          .get()
-          .then((DataSnapshot dataSnapshot) {
-            Map<String, dynamic> myData = Map<String, dynamic>.from(
-              dataSnapshot.value as Map,
-            );
-            List<MessageData> list =
-                myData.values
-                    .map(
-                      (map) => MessageData.fromMap(map.cast<String, dynamic>()),
-                    )
-                    .toList();
-            list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-            setState(() {
-              _messageList = list;
-            });
-          });
+      DatabaseReference messagesRef = FirebaseDatabase.instance.ref(
+        "/chat/messages/${widget.groupId}",
+      );
+      final snapshot = await messagesRef.orderByChild("timestamp").once();
+      Map<String, dynamic> myData = Map<String, dynamic>.from(
+        snapshot.snapshot.value as Map,
+      );
+      List<MessageData> list =
+          myData.values
+              .map((map) => MessageData.fromMap(map.cast<String, dynamic>()))
+              .toList();
+      list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      setState(() {
+        _messageList = list;
+      });
     }
   }
 
   void _fetchNewMessage() {
-    if (_deleteTill > 0) {
-      FirebaseDatabase.instance
-          .ref("/chat/messages")
-          .child(widget.groupId)
-          .orderByKey()
-          .limitToLast(1)
-          .onValue
-          .listen((DatabaseEvent event) {
-            if (event.snapshot.exists) {
-              Map<String, dynamic> messageModel = Map<String, dynamic>.from(
-                event.snapshot.value as Map,
-              );
-              List<MessageData> lastMessage =
-                  messageModel.values
-                      .map(
-                        (entry) =>
-                            MessageData.fromMap(entry.cast<String, dynamic>()),
-                      )
-                      .toList();
-              if (lastMessage[0].timestamp > _deleteTill) {
-                var arr = _messageList;
-                arr.insert(0, lastMessage[0]);
-                setState(() {
-                  _messageList = arr;
-                });
-              }
+    _dataSubscription = FirebaseDatabase.instance
+        .ref("/chat/messages")
+        .child(widget.groupId)
+        .orderByKey()
+        .limitToLast(1)
+        .onValue
+        .listen((DatabaseEvent event) {
+          if (event.snapshot.exists) {
+            Map<String, dynamic> messageModel = Map<String, dynamic>.from(
+              event.snapshot.value as Map,
+            );
+            List<MessageData> lastMessage =
+                messageModel.values
+                    .map(
+                      (entry) =>
+                          MessageData.fromMap(entry.cast<String, dynamic>()),
+                    )
+                    .toList();
+            if (lastMessage[0].timestamp > _deleteTill) {
+              var arr = _messageList;
+              arr.insert(arr.length, lastMessage[0]);
+              setState(() {
+                _messageList = arr;
+              });
             }
-          });
-    }
+          } else {
+            print("no data");
+          }
+        });
   }
 
   void _prepareMessage(String messageType) {
@@ -166,8 +166,6 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
       "active": true,
     };
     groupMembers[userModel["uid"]] = userModel;
-
-    String groupId = generatePrivateChatId(user.uid, otherUser.uid);
     Map<String, dynamic> newGroup = {
       "group": false,
       "name": "",
@@ -175,34 +173,29 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
       "group_deleted": false,
       "members": groupMembers,
       "created_by": userModel["uid"],
-      "group_id": groupId,
+      "group_id": widget.groupId,
       "timestamp": timestamp,
     };
     FirebaseDatabase.instance
         .ref("/chat/group")
-        .child(groupId)
+        .child(widget.groupId)
         .set(newGroup)
         .then((onValue) {
+          _prepareMessage(MessageType.text);
           newGroup["members"].keys.forEach((key) {
             FirebaseDatabase.instance
                 .ref("/chat/users")
                 .child(key)
                 .child("group")
-                .child(groupId)
+                .child(widget.groupId)
                 .set(true)
-                .then((onValue) {
-                  if (mounted) {
-                    _prepareMessage(MessageType.text);
-                  }
-                });
+                .then((onValue) {});
           });
         });
   }
 
   void _onSendMessage(usersList) {
-    if (_messageController.text.isEmpty) {
-      print("message empty");
-    } else {
+    if (_messageController.text.isNotEmpty) {
       if (_isGroupExist) {
         _prepareMessage(MessageType.text);
       } else {
@@ -227,12 +220,16 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
 
     _fetchAllMessages();
 
+    /**
+      * fetch new message and push to list when a new message send and receive
+      */
     _fetchNewMessage();
   }
 
   @override
-  void didUpdateWidget(covariant ChatMessageScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
+  void dispose() {
+    _dataSubscription?.cancel(); // Cancel the subscription
+    super.dispose();
   }
 
   Widget renderItem(MessageData item) {
@@ -272,22 +269,24 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
               ? "Last seen ${chatIsTodayHeader(otherUser.lastSeenOnline) ? chatFormatTimeAMPM(otherUser.lastSeenOnline) : chatFormatDateDDMonthYYYY(chatFormatDate(otherUser.lastSeenOnline))}"
               : "Offline";
     } else {
-      var groupDetail = userChatGroups[widget.groupId];
-      _title = groupDetail!.name;
-      _image = groupDetail.imageUrl;
-      _status = "${groupDetail.members.length} Members";
+      if (userChatGroups.containsKey(widget.groupId)) {
+        var groupDetail = userChatGroups[widget.groupId];
+        _title = groupDetail!.name;
+        _image = groupDetail.imageUrl;
+        _status = "${groupDetail.members.length} Members";
+      }
     }
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.whiteColor,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
           child: Container(
             decoration: const BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: Colors.grey, // Choose your color
+                  color: AppColors.greyColor, // Choose your color
                   width: 1.0, // Choose your thickness
                 ),
               ),
@@ -352,43 +351,88 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
           ),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
+      body: SafeArea(
         child: Column(
           children: [
             Expanded(
-              child: GroupedListView<MessageData, String>(
-                elements: _messageList,
-                groupBy: (element) => chatFormatDate(element.timestamp),
-                groupSeparatorBuilder:
-                    (String groupByValue) => Text(
-                      chatIsToday(groupByValue)
-                          ? 'Today'
-                          : chatIsYesterday(groupByValue)
-                          ? 'Yesterday'
-                          : chatFormatDateDDMonthYYYY(groupByValue),
-                      textAlign: TextAlign.center,
-                    ),
-                itemBuilder: (context, dynamic element) => renderItem(element),
-                floatingHeader: true,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: GroupedListView<MessageData, String>(
+                  elements: _messageList,
+                  groupBy: (element) => chatFormatDate(element.timestamp),
+                  groupSeparatorBuilder:
+                      (String groupByValue) => Text(
+                        chatIsToday(groupByValue)
+                            ? 'Today'
+                            : chatIsYesterday(groupByValue)
+                            ? 'Yesterday'
+                            : chatFormatDateDDMonthYYYY(groupByValue),
+                        textAlign: TextAlign.center,
+                        style: ConstantStyles.regular.copyWith(fontSize: 16),
+                      ),
+                  itemBuilder:
+                      (context, dynamic element) => renderItem(element),
+                  floatingHeader: true,
+                ),
               ),
             ),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter Message',
+            Container(
+              color: AppColors.primaryColor,
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: () {},
+                    child: Center(
+                      child: Icon(
+                        Icons.add,
+                        size: 28,
+                        color: AppColors.whiteColor,
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(width: 20),
-                TextButton(
-                  onPressed: () => _onSendMessage(usersList),
-                  child: Center(child: Text("Send")),
-                ),
-              ],
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: InputDecoration(
+                          hintText: 'Enter Message',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          fillColor: AppColors.whiteColor,
+                          filled: true,
+                          // enabledBorder: OutlineInputBorder(
+                          //   borderSide: BorderSide(color: Colors.red, width: 2.0),
+                          //   borderRadius: BorderRadius.circular(10.0),
+                          // ),
+
+                          // // Border color when the TextField is focused (clicked)
+                          // focusedBorder: OutlineInputBorder(
+                          //   borderSide: BorderSide(
+                          //     color: Colors.blue,
+                          //     width: 3.0,
+                          //   ),
+                          //   borderRadius: BorderRadius.circular(10.0),
+                          // ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _onSendMessage(usersList),
+                    child: Center(
+                      child: Text(
+                        "Send",
+                        style: ConstantStyles.medium.copyWith(
+                          color: AppColors.whiteColor,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

@@ -45,6 +45,7 @@ dependencies:
   shared_preferences: ^2.5.3
   intl: ^0.20.2
   grouped_list: ^6.0.0
+  toastification: ^3.0.3
 
 dev_dependencies:
   flutter_test:

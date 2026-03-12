@@ -1,7 +1,7 @@
 class GroupData {
   final String groupId;
   final String imageUrl;
-  final Map<String, Member> members;
+  final Map<String, dynamic> members;
   final LastMessage? lastMessage;
   final String name;
   final String createdBy;
@@ -21,13 +21,11 @@ class GroupData {
     required this.timestamp,
   });
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toMap() => {
     "group_id": groupId,
     "image_url": imageUrl,
-    "members": Map.from(
-      members,
-    ).map((k, v) => MapEntry<String, dynamic>(k, v.toJson())),
-    "lastMessage": lastMessage!.toJson(),
+    "members": members,
+    "lastMessage": lastMessage?.toMap(),
     "name": name,
     "created_by": createdBy,
     "group_deleted": groupDeleted,
@@ -75,7 +73,7 @@ class LastMessage {
     required this.timestamp,
   });
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toMap() => {
     "message_id": messageId,
     "message_type": messageType,
     "message": message,
@@ -111,13 +109,13 @@ class Member {
     required this.admin,
   });
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toMap() => {
     "unread_group_count": unreadGroupCount,
     "uid": uid,
     "active": active,
     "delete_till": deleteTill,
     "last_seen_message_timestamp": lastSeenMessageTimestamp,
-    // "admin": admin,
+    "admin": admin,
   };
 
   factory Member.fromMap(Map<String, dynamic> map) => Member(

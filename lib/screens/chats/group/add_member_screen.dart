@@ -1,3 +1,4 @@
+import 'package:chat_app/constants/app_colors.dart';
 import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/models/user.dart';
 import 'package:chat_app/provider/chat_provider.dart';
@@ -26,10 +27,7 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
           child: Container(
             decoration: const BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey, // Choose your color
-                  width: 1.0, // Choose your thickness
-                ),
+                bottom: BorderSide(color: AppColors.greyColor, width: 1.0),
               ),
             ),
           ),
@@ -77,16 +75,16 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
                                           padding: EdgeInsets.all(4),
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: Colors.grey,
+                                            color: AppColors.greyColor,
                                             border: Border.all(
-                                              color: Colors.white,
+                                              color: AppColors.whiteColor,
                                               width: 2,
                                             ), // White border for visibility
                                           ),
                                           child: Icon(
                                             Icons.close,
                                             size: 12.0,
-                                            color: Colors.white,
+                                            color: AppColors.whiteColor,
                                           ),
                                         ),
                                       ),
@@ -107,7 +105,7 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
                   ),
                   Divider(
                     height: 1, // Height of the divider
-                    color: Colors.grey, // Color of the divider
+                    color: AppColors.greyColor,
                     thickness: 1, // Thickness of the divider line
                     indent: 16, // Left padding
                     endIndent: 16, // Right padding
@@ -137,16 +135,16 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
                                     padding: EdgeInsets.all(4),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.grey,
+                                      color: AppColors.greyColor,
                                       border: Border.all(
-                                        color: Colors.white,
+                                        color: AppColors.whiteColor,
                                         width: 2,
                                       ), // White border for visibility
                                     ),
                                     child: Icon(
                                       Icons.check,
                                       size: 12.0,
-                                      color: Colors.white,
+                                      color: AppColors.whiteColor,
                                     ),
                                   ),
                                 ),
@@ -173,11 +171,11 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
                     itemCount: usersList.length,
                     separatorBuilder: (BuildContext context, int index) {
                       return Divider(
-                        height: 1, // Height of the divider
-                        color: Colors.grey, // Color of the divider
-                        thickness: 1, // Thickness of the divider line
-                        indent: 16, // Left padding
-                        endIndent: 16, // Right padding
+                        height: 1,
+                        color: AppColors.greyColor,
+                        thickness: 1,
+                        indent: 16,
+                        endIndent: 16,
                       );
                     },
                   ),
@@ -203,10 +201,10 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
                         }
                         : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey,
-                  disabledForegroundColor: Colors.white,
+                  backgroundColor: AppColors.primaryColor,
+                  foregroundColor: AppColors.whiteColor,
+                  disabledBackgroundColor: AppColors.greyColor,
+                  disabledForegroundColor: AppColors.whiteColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(0),
                   ),

@@ -1,3 +1,5 @@
+import 'package:chat_app/constants/app_colors.dart';
+import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/constants/constants.dart';
 import 'package:chat_app/models/message.dart';
 import 'package:chat_app/models/user.dart';
@@ -45,16 +47,15 @@ class _IncomingChatCellState extends ConsumerState<IncomingChatCell> {
                   SizedBox(width: 8),
                 ],
               ),
-
             Align(
               alignment: Alignment.centerLeft,
               child: IntrinsicWidth(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 176, 203, 226),
+                    color: AppColors.whiteColor,
                     borderRadius: BorderRadius.circular(16.0),
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 5, horizontal: 12),
+                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                   margin: EdgeInsets.only(top: 5, bottom: 5),
                   constraints: BoxConstraints(
                     minWidth: 100.0, // Minimum width of 100 logical pixels
@@ -79,18 +80,26 @@ class _IncomingChatCellState extends ConsumerState<IncomingChatCell> {
                               (id) => id.uid == widget.item.senderId,
                             );
                             return Text(
-                              userData.name,
-                              style: TextStyle(fontSize: 14),
+                              '~${userData.name}',
+                              style: ConstantStyles.semiBold.copyWith(
+                                fontSize: 14,
+                              ),
                             );
                           },
                         ),
-                      Text(widget.item.message, style: TextStyle(fontSize: 16)),
+                      Text(
+                        widget.item.message!,
+                        style: ConstantStyles.medium.copyWith(fontSize: 16),
+                      ),
                       Align(
                         alignment: Alignment.centerRight,
                         child: Text(
                           chatFormatTimeAMPM(widget.item.timestamp),
                           textAlign: TextAlign.right,
-                          style: TextStyle(fontSize: 14),
+                          style: ConstantStyles.medium.copyWith(
+                            fontSize: 13,
+                            color: AppColors.greyColor,
+                          ),
                         ),
                       ),
                     ],

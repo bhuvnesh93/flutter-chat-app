@@ -1,14 +1,16 @@
+import 'package:chat_app/constants/app_colors.dart';
 import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/models/group.dart';
+import 'package:chat_app/models/group_detail_user_data.dart';
 import 'package:chat_app/models/user.dart';
 import 'package:chat_app/provider/chat_provider.dart';
 import 'package:chat_app/provider/user_provider.dart';
 import 'package:chat_app/screens/chats/group/edit_group_info.dart';
+import 'package:chat_app/screens/chats/widgets/group_detail_member_list_item.dart';
+import 'package:chat_app/utils/utils.dart';
 import 'package:chat_app/widgets/app_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-enum MenuItem { remove, removeAdmin }
 
 class GroupDetailScreen extends ConsumerWidget {
   const GroupDetailScreen({super.key, required this.groupId});
@@ -21,56 +23,62 @@ class GroupDetailScreen extends ConsumerWidget {
     List<UserData> usersList = ref.watch(chatProvider).usersList;
     UserData userData = ref.read(userProvider).user;
 
-    List<dynamic> arr = [];
+    List<GroupDetailUserData> arr = [];
     for (var e in chatGroups[groupId]!.members.values) {
       if (e.uid == userData.uid) {
-        arr.add({
-          "uid": userData.uid,
-          "name": '${userData.name} (You)',
-          "image_url": userData.imageUrl,
-          "status": userData.status,
-          "online": userData.online,
-          "last_seen_online": userData.lastSeenOnline,
-          "admin": e.admin,
-        });
+        arr.add(
+          GroupDetailUserData(
+            uid: userData.uid,
+            name: '${userData.name} (You)',
+            imageUrl: userData.imageUrl,
+            status: userData.status,
+            email: "",
+            online: userData.online,
+            lastSeenOnline: userData.lastSeenOnline,
+            admin: e.admin!,
+          ),
+        );
       } else {
         UserData userData = usersList.firstWhere(
           (element) => element.uid == e.uid,
         );
         if (userData.uid.isNotEmpty) {
-          arr.add({
-            "uid": userData.uid,
-            "name": userData.name,
-            "image_url": userData.imageUrl,
-            "status": userData.status,
-            "online": userData.online,
-            "last_seen_online": userData.lastSeenOnline,
-            "admin": e.admin,
-          });
+          arr.add(
+            GroupDetailUserData(
+              uid: userData.uid,
+              name: userData.name,
+              imageUrl: userData.imageUrl,
+              status: userData.status,
+              email: "",
+              online: userData.online,
+              lastSeenOnline: userData.lastSeenOnline,
+              admin: e.admin!,
+            ),
+          );
         }
       }
     }
 
-    final a1 = arr.where((element) => element["uid"] == userData.uid).toList();
+    final a1 = arr.where((element) => element.uid == userData.uid).toList();
     final a2 = arr.where(
-      (element) => element["admin"] == true && element["uid"] != userData.uid,
+      (element) => element.admin == true && element.uid != userData.uid,
     );
     final a3 = arr.where(
-      (element) => element["admin"] == false && element["uid"] != userData.uid,
+      (element) => element.admin == false && element.uid != userData.uid,
     );
     var membersList = [...a1, ...a2, ...a3];
 
     return Scaffold(
       appBar: AppBar(
         title: AppHeader(text: "Group detail"),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.whiteColor,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: Colors.grey, // Choose your color
+                  color: AppColors.greyColor,
                   width: 1.0, // Choose your thickness
                 ),
               ),
@@ -136,75 +144,26 @@ class GroupDetailScreen extends ConsumerWidget {
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  color: Colors.white,
+                  color: AppColors.whiteColor,
                 ),
                 child: ListView.separated(
                   padding: EdgeInsets.zero,
                   shrinkWrap: true,
                   itemBuilder: (ctx, index) {
-                    return ListTile(
-                      leading: CircleAvatar(
-                        radius: 22,
-                        backgroundImage: AssetImage(
-                          "assets/images/default_profile.png",
-                        ),
-                      ),
-                      title: Text(membersList[index]["name"]),
-                      onTap: null,
-                      trailing:
-                          membersList[index]["admin"] == true
-                              ? Wrap(
-                                spacing: 8,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Text("Admin"),
-                                  if (chatGroups[groupId]!
-                                              .members[userData.uid]!
-                                              .admin ==
-                                          true &&
-                                      chatGroups[groupId]!
-                                              .members[userData.uid]!
-                                              .active ==
-                                          true &&
-                                      membersList[index]["uid"] != userData.uid)
-                                    PopupMenuButton<MenuItem>(
-                                      icon: const Icon(Icons.more_vert),
-                                      onSelected: (MenuItem result) {
-                                        // Handle the selected menu item
-                                        if (result == MenuItem.remove) {
-                                          //
-                                        } else if (result ==
-                                            MenuItem.removeAdmin) {
-                                          //
-                                        }
-                                      },
-                                      itemBuilder:
-                                          (BuildContext context) =>
-                                              <PopupMenuEntry<MenuItem>>[
-                                                const PopupMenuItem<MenuItem>(
-                                                  value: MenuItem.remove,
-                                                  child: Text('Remove'),
-                                                ),
-                                                const PopupMenuItem<MenuItem>(
-                                                  value: MenuItem.removeAdmin,
-                                                  child: Text('Remove Admin'),
-                                                ),
-                                              ],
-                                    ),
-                                ],
-                              )
-                              : null,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 8.0,
-                      ),
+                    return GroupDetailMemberListItem(
+                      item: membersList[index],
+                      groupId: groupId,
+                      isSelfUserActive: true,
+                      onRemoveMember: () {
+                        //
+                      },
                     );
                   },
                   itemCount: membersList.length,
                   separatorBuilder: (BuildContext context, int index) {
                     return Divider(
                       height: 1,
-                      color: Colors.grey,
+                      color: AppColors.greyColor,
                       thickness: 1,
                       indent: 16,
                       endIndent: 16,
@@ -217,7 +176,7 @@ class GroupDetailScreen extends ConsumerWidget {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  color: Colors.white,
+                  color: AppColors.whiteColor,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,7 +197,7 @@ class GroupDetailScreen extends ConsumerWidget {
                                       alignment: Alignment.center,
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(10),
-                                        color: Colors.white,
+                                        color: AppColors.whiteColor,
                                       ),
                                       padding: EdgeInsets.all(12),
                                       child: Align(
@@ -259,7 +218,7 @@ class GroupDetailScreen extends ConsumerWidget {
                                           borderRadius: BorderRadius.circular(
                                             10,
                                           ),
-                                          color: Colors.white,
+                                          color: AppColors.whiteColor,
                                         ),
                                         padding: EdgeInsets.all(12),
                                         child: Text("Clear all messages"),
@@ -284,14 +243,14 @@ class GroupDetailScreen extends ConsumerWidget {
                       ),
                     ),
                     Divider(
-                      color: Colors.grey,
+                      color: AppColors.greyColor,
                       height: 1,
                       indent: 16,
                       endIndent: 16,
                     ),
                     InkWell(
                       onTap: () {
-                        print("exit group");
+                        logging("exit group");
                       },
                       child: Container(
                         alignment: Alignment.centerLeft,
@@ -313,4 +272,6 @@ class GroupDetailScreen extends ConsumerWidget {
       ),
     );
   }
+
+  void _onRemoveMember() {}
 }

@@ -29,12 +29,13 @@ class MessageData {
     );
   }
 
-  // Map<String, dynamic> toMap() => {
-  //   "message_id": messageId,
-  //   "message_type": messageType,
-  //   "message": message,
-  //   "type": type,
-  //   "sender_id": senderId,
-  //   "timestamp": timestamp,
-  // };
+  Map<String, dynamic> toMap() => {
+    "message_id": messageId,
+    "message_type": messageType,
+    "message": message,
+    "type": type,
+    "sender_id": senderId,
+    "timestamp": timestamp,
+    "members": members,
+  };
 }

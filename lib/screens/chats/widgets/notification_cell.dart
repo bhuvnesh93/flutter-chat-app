@@ -1,3 +1,4 @@
+import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/constants/constants.dart';
 import 'package:chat_app/models/message.dart';
 import 'package:chat_app/models/user.dart';
@@ -40,23 +41,18 @@ class _NotificationCellState extends ConsumerState<NotificationCell> {
         _message = "$_userName created this group";
       } else if (widget.item.messageType == MessageType.addMember) {
         String membersName = '';
-        if (widget.item.members.length > 1) {
-          // if (widget.item.members.length - 1 > 1) {
+        if (widget.item.members!.length > 1) {
           UserData user = usersList.firstWhere(
-            (element) => element.uid == widget.item.members[0]["uid"],
+            (element) => element.uid == widget.item.members![0]["uid"],
           );
           membersName =
-              "${user.name} and ${widget.item.members.length - 1} others";
-          // } else {
-          //   membersName =
-          //       "${widget.item.members[0]["name"]} and ${widget.item.members.length - 1} other";
-          // }
+              "${user.name} and ${widget.item.members!.length - 1} others";
         } else {
-          if (widget.item.members[0]["uid"] == userData.uid) {
+          if (widget.item.members![0]["uid"] == userData.uid) {
             membersName = 'You';
           } else {
             UserData user = usersList.firstWhere(
-              (element) => element.uid == widget.item.members[0]["uid"],
+              (element) => element.uid == widget.item.members![0]["uid"],
             );
             membersName = user.name;
           }
@@ -65,22 +61,30 @@ class _NotificationCellState extends ConsumerState<NotificationCell> {
       } else if (widget.item.messageType == MessageType.removeMember) {
         String membersName = '';
 
-        if (widget.item.members[0]["uid"] == userData.uid) {
+        if (widget.item.members![0]["uid"] == userData.uid) {
           membersName = 'You';
         } else {
           UserData user = usersList.firstWhere(
-            (element) => element.uid == widget.item.members[0]["uid"],
+            (element) => element.uid == widget.item.members![0]["uid"],
           );
           membersName = user.name;
         }
-
         _message = "$_userName removed $membersName";
+      } else if (widget.item.messageType == MessageType.changeGroupName) {
+        _message = "$_userName changed the group name";
+      } else if (widget.item.messageType == MessageType.changeGroupImage) {
+        _message = "$_userName changed the group image";
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Center(child: Text(_message));
+    return Center(
+      child: Text(
+        _message,
+        style: ConstantStyles.regular.copyWith(fontSize: 13),
+      ),
+    );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/models/group.dart';
 import 'package:chat_app/models/user.dart';
@@ -19,7 +21,7 @@ class ChatsListItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usersList = ref.watch(chatProvider).usersList;
-    UserData userData = ref.read(userProvider).user;
+    final userData = ref.read(userProvider).user;
     String groupName = "";
     String groupImage = "";
 
@@ -43,11 +45,13 @@ class ChatsListItem extends ConsumerWidget {
       leading: CircleAvatar(
         radius: 30,
         backgroundImage:
-            groupImage != ""
+            groupImage.isNotEmpty
                 ? NetworkImage(groupImage)
-                : item.group == true
-                ? AssetImage("assets/images/default_group.png")
-                : AssetImage("assets/images/default_profile.png"),
+                : AssetImage(
+                  item.group
+                      ? "assets/images/default_group.png"
+                      : "assets/images/default_profile.png",
+                ),
       ),
       title: Text(groupName, style: ConstantStyles.bold.copyWith(fontSize: 17)),
       subtitle: Text(

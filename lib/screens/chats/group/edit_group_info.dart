@@ -1,8 +1,13 @@
+import 'package:chat_app/constants/app_colors.dart';
 import 'package:chat_app/constants/constant_styles.dart';
+import 'package:chat_app/provider/user_provider.dart';
+import 'package:chat_app/utils/chat_handler.dart';
 import 'package:chat_app/widgets/app_header.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
-class EditGroupInfo extends StatefulWidget {
+class EditGroupInfo extends ConsumerStatefulWidget {
   final String groupImage;
   final String groupName;
   final String groupId;
@@ -15,16 +20,19 @@ class EditGroupInfo extends StatefulWidget {
   });
 
   @override
-  State<EditGroupInfo> createState() => _EditGroupInfoState();
+  ConsumerState<EditGroupInfo> createState() => _EditGroupInfoState();
 }
 
-class _EditGroupInfoState extends State<EditGroupInfo> {
+class _EditGroupInfoState extends ConsumerState<EditGroupInfo> {
   late final TextEditingController _groupNameController;
+  late String _uid;
 
   @override
   void initState() {
     super.initState();
     _groupNameController = TextEditingController(text: widget.groupName);
+
+    _uid = ref.read(userProvider).user.uid;
   }
 
   @override
@@ -38,14 +46,14 @@ class _EditGroupInfoState extends State<EditGroupInfo> {
     return Scaffold(
       appBar: AppBar(
         title: AppHeader(text: "Edit group info"),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.whiteColor,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: Colors.grey, // Choose your color
+                  color: AppColors.greyColor,
                   width: 1.0, // Choose your thickness
                 ),
               ),
@@ -55,12 +63,7 @@ class _EditGroupInfoState extends State<EditGroupInfo> {
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: TextButton(
-              onPressed: () {
-                //
-              },
-              child: Text("Save"),
-            ),
+            child: TextButton(onPressed: _onSave, child: Text("Save")),
           ),
         ],
       ),
@@ -68,7 +71,6 @@ class _EditGroupInfoState extends State<EditGroupInfo> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
-            // crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               CircleAvatar(
                 radius: 60,
@@ -103,7 +105,7 @@ class _EditGroupInfoState extends State<EditGroupInfo> {
                   "Edit",
                   style: ConstantStyles.medium.copyWith(
                     fontSize: 16.0,
-                    color: Colors.blue,
+                    color: AppColors.primaryColor,
                   ),
                 ),
               ),
@@ -123,7 +125,29 @@ class _EditGroupInfoState extends State<EditGroupInfo> {
     );
   }
 
-  void _handleImageCapture() {}
+  void _handleImageCapture() async {
+    final pickedImage = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      imageQuality: 50,
+      maxWidth: 150,
+    );
+    // logging('image : ${pickedImage!.path}');
+  }
 
-  void _pickImage() {}
+  void _pickImage() async {
+    final pickedImage = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+      maxWidth: 150,
+    );
+    // logging('image : ${pickedImage!.path}');
+  }
+
+  void _onSave() {
+    if (_groupNameController.text.trim().isNotEmpty) {
+      updateGroupName(_uid, widget.groupId, _groupNameController.text, () {
+        Navigator.pop(context);
+      });
+    }
+  }
 }
