@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:chat_app/constants/app_colors.dart';
 import 'package:chat_app/constants/constants.dart';
@@ -12,10 +14,11 @@ import 'package:chat_app/screens/chats/new_chat_screen.dart';
 import 'package:chat_app/screens/profile/profile_detail_screen.dart';
 import 'package:chat_app/screens/chats/widgets/chats_list_item.dart';
 import 'package:chat_app/utils/chat_handler.dart';
-import 'package:chat_app/utils/utils.dart';
 import 'package:chat_app/widgets/app_header.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,33 +34,30 @@ class ChatsScreen extends ConsumerStatefulWidget {
 class _ChatsScreenState extends ConsumerState<ChatsScreen> {
   late String _uid;
   late final AppLifecycleListener _listener;
+  StreamSubscription<DatabaseEvent>? _subscription;
+  StreamSubscription<DatabaseEvent>? _childSubscription;
 
   void _prepareGroupDataModel(value) {
-    final originalMap = value as Map<Object?, Object?>;
-    Map<String, dynamic> castedMap = originalMap.cast<String, dynamic>();
-    try {
-      GroupData groupData = GroupData.fromMap(castedMap);
-      ref.read(chatProvider.notifier).saveUserChatGroups(groupData);
-    } on Exception catch (e) {
-      logging("e $e");
-    }
+    Map<String, dynamic> castedMap = Map<String, dynamic>.from(value as Map);
+    GroupData groupData = GroupData.fromMap(castedMap);
+    ref.read(chatProvider.notifier).saveUserChatGroups(groupData);
   }
 
   void _fetchUserGroups() async {
     DatabaseReference userRef = FirebaseDatabase.instance.ref(
       "/chat/users/$_uid/group",
     );
-
-    userRef.onValue.listen((DatabaseEvent event) {
-      if (event.snapshot.exists) {
-        final originalMap = event.snapshot.value as Map<Object?, Object?>;
-        Map<String, dynamic> castedMap = originalMap.cast<String, dynamic>();
+    _subscription = userRef.onValue.listen((DatabaseEvent databaseEvent) {
+      if (databaseEvent.snapshot.exists) {
+        Map<String, dynamic> castedMap = Map<String, dynamic>.from(
+          databaseEvent.snapshot.value as Map,
+        );
         castedMap.forEach((key, value) async {
           if (value == true) {
             final ref = FirebaseDatabase.instance.ref('/chat/group/$key');
-            final snapshot = await ref.once();
-            if (snapshot.snapshot.exists) {
-              _prepareGroupDataModel(snapshot.snapshot.value);
+            final databaseEvent = await ref.once();
+            if (databaseEvent.snapshot.exists) {
+              _prepareGroupDataModel(databaseEvent.snapshot.value);
             }
           } else {
             ref.read(chatProvider.notifier).removeGroup(key);
@@ -68,12 +68,12 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
   }
 
   void _fetchGroupsChildUpdated() {
-    FirebaseDatabase.instance
+    _childSubscription = FirebaseDatabase.instance
         .ref("/chat/group")
         .onChildChanged
         .listen(
-          (DatabaseEvent event) {
-            _prepareGroupDataModel(event.snapshot.value);
+          (DatabaseEvent databaseEvent) {
+            _prepareGroupDataModel(databaseEvent.snapshot.value);
           },
           onError: (error) {
             log('Listen error: $error');
@@ -81,27 +81,31 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
         );
   }
 
-  void _fetchUsersOnce() async {
-    DatabaseReference usersRef = FirebaseDatabase.instance.ref("/chat/users");
-    final snapshot = await usersRef.once();
-    if (snapshot.snapshot.exists) {
-      final originalMap = snapshot.snapshot.value as Map<Object?, Object?>;
-      Map<String, dynamic> castedMap = originalMap.cast<String, dynamic>();
-      final usersList =
-          castedMap.values
-              .map((map) => UserData.fromMap(map.cast<String, dynamic>()))
-              .toList()
-              .where((element) => element.uid != _uid)
-              .toList();
-      ref.read(chatProvider.notifier).saveUsersList(usersList);
-    }
-  }
+  // void _fetchUsersOnce() async {
+  //   DatabaseReference usersRef = FirebaseDatabase.instance.ref("/chat/users");
+  //   final databaseEvent = await usersRef.once();
+  //   if (databaseEvent.snapshot.exists) {
+  //     // final originalMap = snapshot.snapshot.value as Map<Object?, Object?>;
+  //     // Map<String, dynamic> castedMap = originalMap.cast<String, dynamic>();
+  //     Map<String, dynamic> castedMap = Map<String, dynamic>.from(
+  //       databaseEvent.snapshot.value as Map,
+  //     );
+  //     final usersList =
+  //         castedMap.values
+  //             .map((map) => UserData.fromMap(map.cast<String, dynamic>()))
+  //             .toList()
+  //             .where((element) => element.uid != _uid)
+  //             .toList();
+  //     ref.read(chatProvider.notifier).saveUsersList(usersList);
+  //   }
+  // }
 
   void _fetchUserChildUpdates() {
     DatabaseReference usersRef = FirebaseDatabase.instance.ref("/chat/users");
-    usersRef.onChildChanged.listen((DatabaseEvent event) {
-      final originalMap = event.snapshot.value as Map<Object?, Object?>;
-      Map<String, dynamic> castedMap = originalMap.cast<String, dynamic>();
+    usersRef.onChildChanged.listen((DatabaseEvent databaseEvent) {
+      Map<String, dynamic> castedMap = Map<String, dynamic>.from(
+        databaseEvent.snapshot.value as Map,
+      );
       UserData childChanged = UserData.fromMap(
         castedMap.cast<String, dynamic>(),
       );
@@ -118,14 +122,57 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
     });
   }
 
+  Future<void> requestNotificationPermission() async {
+    var deviceInfo = DeviceInfoPlugin();
+    String? deviceId = "";
+    if (Platform.isIOS) {
+      var iosDeviceInfo = await deviceInfo.iosInfo;
+      deviceId = iosDeviceInfo.identifierForVendor;
+    } else if (Platform.isAndroid) {
+      var androidDeviceInfo = await deviceInfo.androidInfo;
+      print(androidDeviceInfo);
+      deviceId = androidDeviceInfo.id;
+      print("deviceId $deviceId");
+    }
+
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    final settings = await messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      String? fcmToken;
+      if (Platform.isIOS) {
+        String? apnsToken = await messaging.getAPNSToken();
+        if (apnsToken != null) {
+          fcmToken = await FirebaseMessaging.instance.getToken();
+        }
+      } else if (Platform.isAndroid) {
+        fcmToken = await messaging.getToken();
+      }
+      updateFCMTokenAndDeviceId(deviceId!, fcmToken ?? "", _uid);
+    } else if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      //
+    }
+  }
+
   @override
   void initState() {
     super.initState();
 
     _uid = ref.read(userProvider).user.uid;
 
+    requestNotificationPermission();
+
     // fetch all users once
-    _fetchUsersOnce();
+    fetchAllUsers(_uid, (usersList) {
+      ref.read(chatProvider.notifier).saveUsersList(usersList);
+    });
 
     // listen on users child changed
     _fetchUserChildUpdates();
@@ -149,29 +196,43 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
   @override
   void dispose() {
     _listener.dispose();
+    _subscription?.cancel();
+    _childSubscription?.cancel();
     super.dispose();
   }
 
-  void _logout() {
-    FirebaseAuth.instance.signOut();
+  void _logout() async {
     updateOnlineOfflineStatus(_uid, false);
-    ref
-        .read(userProvider.notifier)
-        .saveUserData(
-          UserData(
-            uid: "",
-            name: "",
-            imageUrl: "",
-            status: "",
-            email: "",
-            online: false,
-            lastSeenOnline: 0,
-          ),
-        );
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (ctx) => LoginScreen()),
-    );
+    var deviceInfo = DeviceInfoPlugin();
+    String? deviceId = "";
+    if (Platform.isIOS) {
+      var iosDeviceInfo = await deviceInfo.iosInfo;
+      deviceId = iosDeviceInfo.identifierForVendor;
+    } else if (Platform.isAndroid) {
+      var androidDeviceInfo = await deviceInfo.androidInfo;
+      print(androidDeviceInfo);
+      deviceId = androidDeviceInfo.id;
+    }
+    removeFCMTokenAndDeviceIdOnSignout(deviceId!, _uid, () {
+      FirebaseAuth.instance.signOut();
+      ref
+          .read(userProvider.notifier)
+          .saveUserData(
+            UserData(
+              uid: "",
+              name: "",
+              imageUrl: "",
+              status: "",
+              email: "",
+              online: false,
+              lastSeenOnline: 0,
+            ),
+          );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (ctx) => LoginScreen()),
+      );
+    });
   }
 
   Widget renderItem(GroupData item) {

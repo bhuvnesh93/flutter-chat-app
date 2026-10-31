@@ -114,7 +114,7 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
               ),
             Consumer(
               builder: (context, ref, child) {
-                List<UserData> usersList = ref.watch(chatProvider).usersList;
+                final usersList = ref.watch(chatProvider).usersList;
                 return Expanded(
                   child: ListView.separated(
                     itemBuilder:

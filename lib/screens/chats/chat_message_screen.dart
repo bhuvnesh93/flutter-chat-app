@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:chat_app/constants/app_colors.dart';
 import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/constants/constants.dart';
-import 'package:chat_app/models/group.dart';
 import 'package:chat_app/models/message.dart';
 import 'package:chat_app/models/user.dart';
 import 'package:chat_app/provider/chat_provider.dart';
@@ -45,37 +44,37 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
   String _title = "User";
   String _status = "Online";
   String _image = "";
-  // final bool _isSelfUserAdmin = false;
+  bool _isSelfUserAdmin = false;
+  bool _isSelfUserActive = false;
   late UserData _userData;
   late String _uid;
   StreamSubscription<DatabaseEvent>? _dataSubscription;
+  late var _lastMessageData;
 
   void _checkGroupExist() {
-    Map<String, GroupData> userChatGroups =
-        ref.read(chatProvider).userChatGroups;
+    final userChatGroups = ref.read(chatProvider).userChatGroups;
     _isGroupExist = userChatGroups.containsKey(widget.groupId);
     if (_isGroupExist) {
-      // _isSelfUserAdmin = userChatGroups[widget.groupId]?.members[uid]!.admin;
+      _isSelfUserActive = userChatGroups[widget.groupId]?.members[_uid]!.active;
+      _isSelfUserAdmin = userChatGroups[widget.groupId]?.members[_uid]!.admin;
       _deleteTill = userChatGroups[widget.groupId]!.members[_uid]!.deleteTill;
     }
   }
 
   void _fetchAllMessages() async {
     if (_deleteTill > 0) {
-      DatabaseReference messagesRef = FirebaseDatabase.instance.ref(
-        "/chat/messages/${widget.groupId}",
-      );
-      final snapshot = await messagesRef.orderByChild("timestamp").once();
-      Map<String, dynamic> myData = Map<String, dynamic>.from(
-        snapshot.snapshot.value as Map,
-      );
-      List<MessageData> list =
-          myData.values
-              .map((map) => MessageData.fromMap(map.cast<String, dynamic>()))
-              .toList();
-      list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-      setState(() {
-        _messageList = list;
+      fetchMessagesByGroupPagination(widget.groupId, _deleteTill, (list) {
+        if (list.isNotEmpty) {
+          list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          setState(() {
+            _messageList = list;
+            _lastMessageData = list[list.length - 1];
+          });
+        } else {
+          setState(() {
+            _messageList = [];
+          });
+        }
       });
     }
   }
@@ -101,97 +100,34 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
                     .toList();
             if (lastMessage[0].timestamp > _deleteTill) {
               var arr = _messageList;
-              arr.insert(arr.length, lastMessage[0]);
-              setState(() {
-                _messageList = arr;
-              });
+              if (arr.any(
+                (product) => product.messageId == lastMessage[0].messageId,
+              )) {
+                //
+              } else {
+                arr.insert(arr.length, lastMessage[0]);
+                setState(() {
+                  _messageList = arr;
+                  _lastMessageData = lastMessage[0];
+                });
+              }
             }
-          } else {
-            print("no data");
           }
         });
   }
 
   void _prepareMessage(String messageType) {
-    int timestamp = DateTime.now().millisecondsSinceEpoch;
-    String? messageId =
-        FirebaseDatabase.instance
-            .ref("/chat/messages")
-            .child(widget.groupId)
-            .push()
-            .key;
-    Map<String, dynamic> messageObj = {
-      "message": _messageController.text,
-      "sender_id": _uid,
-      "timestamp": timestamp,
-      "message_id": messageId,
-      "message_type": messageType,
-      "type": ChatType.chatMessage,
-    };
-    FirebaseDatabase.instance
-        .ref("/chat/group")
-        .child(widget.groupId)
-        .child("lastMessage")
-        .set(messageObj)
-        .then((onValue) {});
-    FirebaseDatabase.instance
-        .ref("/chat/messages")
-        .child(widget.groupId)
-        .child(messageId!)
-        .set(messageObj)
-        .then((onValue) {
-          if (mounted) {
-            _messageController.clear();
-          }
-        });
-  }
-
-  void _createOneOnOneChatGroup(UserData user, UserData otherUser) {
-    int timestamp = DateTime.now().millisecondsSinceEpoch;
-    var groupMembers = {};
-    Map<String, dynamic> otherUserModel = {
-      "unread_group_count": 0,
-      "last_seen_message_timestamp": timestamp,
-      "uid": otherUser.uid,
-      "delete_till": timestamp,
-      "active": true,
-    };
-    groupMembers[otherUserModel["uid"]] = otherUserModel;
-
-    Map<String, dynamic> userModel = {
-      "unread_group_count": 0,
-      "last_seen_message_timestamp": timestamp,
-      "uid": user.uid,
-      "delete_till": timestamp,
-      "active": true,
-    };
-    groupMembers[userModel["uid"]] = userModel;
-    Map<String, dynamic> newGroup = {
-      "group": false,
-      "name": "",
-      "image_url": "",
-      "group_deleted": false,
-      "members": groupMembers,
-      "created_by": userModel["uid"],
-      "group_id": widget.groupId,
-      "timestamp": timestamp,
-    };
-    FirebaseDatabase.instance
-        .ref("/chat/group")
-        .child(widget.groupId)
-        .set(newGroup)
-        .then((onValue) {
-          _prepareMessage(MessageType.text);
-          newGroup["members"].keys.forEach((key) {
-            FirebaseDatabase.instance
-                .ref("/chat/users")
-                .child(key)
-                .child("group")
-                .child(widget.groupId)
-                .set(true)
-                .then((onValue) {});
-          });
-        });
+    sendMessageToChat(
+      _uid,
+      widget.groupId,
+      messageType,
+      _messageController.text,
+      () {
+        if (mounted) {
+          _messageController.clear();
+        }
+      },
+    );
   }
 
   void _onSendMessage(usersList) {
@@ -204,7 +140,9 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
         final otherUser = usersList.firstWhere(
           (userItem) => userItem.uid == otherUserId,
         );
-        _createOneOnOneChatGroup(_userData, otherUser);
+        createOneOnOneChatGroup(_userData, otherUser, widget.groupId, () {
+          _prepareMessage(MessageType.text);
+        });
       }
     }
   }
@@ -236,11 +174,44 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
     if (item.type == ChatType.groupNotification) {
       return NotificationCell(item: item);
     } else if (item.senderId == _uid) {
-      return OutgoingChatCell(item: item);
+      return OutgoingChatCell(
+        item: item,
+        onLongPress: (item) {
+          showModalBottomSheet(
+            context: context,
+            builder: (BuildContext context) {
+              return Wrap(
+                children: <Widget>[
+                  ListTile(
+                    leading: Icon(Icons.edit),
+                    title: Text('Edit'),
+                    onTap: () {
+                      //
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.delete),
+                    title: Text('Delete'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      deleteMessage(widget.groupId, item, _lastMessageData);
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
     } else if (item.senderId != _uid) {
       return IncomingChatCell(item: item, chatType: widget.chatType);
     }
     return Text("");
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatMessageScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
   }
 
   @override
@@ -250,9 +221,23 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
 
     _isGroupExist = userChatGroups.containsKey(widget.groupId);
     if (_isGroupExist) {
-      // _isSelfUserAdmin = userChatGroups[widget.groupId]?.members[uid]!.admin;
+      _isSelfUserActive = userChatGroups[widget.groupId]?.members[_uid]!.active;
+      _isSelfUserAdmin = userChatGroups[widget.groupId]?.members[_uid]!.admin;
       _deleteTill = userChatGroups[widget.groupId]!.members[_uid]!.deleteTill;
     }
+
+    ref.listen<ChatState>(chatProvider, (oldValue, newValue) {
+      int oldDeleteTill =
+          oldValue!.userChatGroups[widget.groupId]!.members[_uid]!.deleteTill;
+      int newDeleteTill =
+          newValue.userChatGroups[widget.groupId]!.members[_uid]!.deleteTill;
+
+      _deleteTill = newDeleteTill;
+
+      if (newDeleteTill > oldDeleteTill) {
+        _fetchAllMessages();
+      }
+    });
 
     if (widget.chatType == DaialogType.oneOnOneChat) {
       List<String> arr = widget.groupId.split("_");
@@ -376,64 +361,67 @@ class _ChatsScreenState extends ConsumerState<ChatMessageScreen> {
                 ),
               ),
             ),
-            Container(
-              color: AppColors.primaryColor,
-              child: Row(
-                children: [
-                  TextButton(
-                    onPressed: () {},
-                    child: Center(
-                      child: Icon(
-                        Icons.add,
-                        size: 28,
-                        color: AppColors.whiteColor,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: TextField(
-                        controller: _messageController,
-                        decoration: InputDecoration(
-                          hintText: 'Enter Message',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10.0),
-                          ),
-                          fillColor: AppColors.whiteColor,
-                          filled: true,
-                          // enabledBorder: OutlineInputBorder(
-                          //   borderSide: BorderSide(color: Colors.red, width: 2.0),
-                          //   borderRadius: BorderRadius.circular(10.0),
-                          // ),
-
-                          // // Border color when the TextField is focused (clicked)
-                          // focusedBorder: OutlineInputBorder(
-                          //   borderSide: BorderSide(
-                          //     color: Colors.blue,
-                          //     width: 3.0,
-                          //   ),
-                          //   borderRadius: BorderRadius.circular(10.0),
-                          // ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => _onSendMessage(usersList),
-                    child: Center(
-                      child: Text(
-                        "Send",
-                        style: ConstantStyles.medium.copyWith(
+            if (_isSelfUserActive)
+              Container(
+                color: AppColors.primaryColor,
+                child: Row(
+                  children: [
+                    TextButton(
+                      onPressed: () {},
+                      child: Center(
+                        child: Icon(
+                          Icons.add,
+                          size: 28,
                           color: AppColors.whiteColor,
-                          fontSize: 15,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: TextField(
+                          controller: _messageController,
+                          decoration: InputDecoration(
+                            hintText: 'Enter Message',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                            fillColor: AppColors.whiteColor,
+                            filled: true,
+                            // enabledBorder: OutlineInputBorder(
+                            //   borderSide: BorderSide(color: Colors.red, width: 2.0),
+                            //   borderRadius: BorderRadius.circular(10.0),
+                            // ),
+
+                            // // Border color when the TextField is focused (clicked)
+                            // focusedBorder: OutlineInputBorder(
+                            //   borderSide: BorderSide(
+                            //     color: Colors.blue,
+                            //     width: 3.0,
+                            //   ),
+                            //   borderRadius: BorderRadius.circular(10.0),
+                            // ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _onSendMessage(usersList),
+                      child: Center(
+                        child: Text(
+                          "Send",
+                          style: ConstantStyles.medium.copyWith(
+                            color: AppColors.whiteColor,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            if (_isSelfUserActive == false)
+              Text("You are no longer active member"),
           ],
         ),
       ),

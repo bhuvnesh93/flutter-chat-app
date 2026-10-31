@@ -63,6 +63,8 @@ class LastMessage {
   final String type;
   final String senderId;
   final int timestamp;
+  final bool? isDeleted;
+  final bool? isEdited;
 
   LastMessage({
     required this.messageId,
@@ -71,6 +73,8 @@ class LastMessage {
     required this.type,
     required this.senderId,
     required this.timestamp,
+    this.isDeleted,
+    this.isEdited,
   });
 
   Map<String, dynamic> toMap() => {
@@ -89,6 +93,8 @@ class LastMessage {
     type: map["type"] ?? "",
     senderId: map["sender_id"] ?? "",
     timestamp: map["timestamp"] ?? 0,
+    isDeleted: map["is_deleted"] ?? false,
+    isEdited: map["is_edited"] ?? false,
   );
 }
 
@@ -106,7 +112,7 @@ class Member {
     required this.active,
     required this.deleteTill,
     required this.lastSeenMessageTimestamp,
-    required this.admin,
+    this.admin,
   });
 
   Map<String, dynamic> toMap() => {
@@ -124,6 +130,6 @@ class Member {
     active: map["active"],
     deleteTill: map["delete_till"],
     lastSeenMessageTimestamp: map["last_seen_message_timestamp"],
-    admin: map["admin"],
+    admin: map["admin"] ?? false,
   );
 }

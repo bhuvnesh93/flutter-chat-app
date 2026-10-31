@@ -1,20 +1,24 @@
 class MessageData {
-  final String message;
+  final String? message;
   final String messageId;
   final String messageType;
   final String senderId;
   final String type;
   final int timestamp;
-  final List<dynamic> members;
+  final List<dynamic>? members;
+  final bool? isDeleted;
+  final bool? isEdited;
 
   MessageData({
-    required this.message,
+    this.message,
     required this.messageId,
     required this.messageType,
     required this.senderId,
     required this.type,
     required this.timestamp,
-    required this.members,
+    this.members,
+    this.isDeleted,
+    this.isEdited,
   });
 
   factory MessageData.fromMap(Map<String, dynamic> map) {
@@ -26,6 +30,8 @@ class MessageData {
       timestamp: map["timestamp"],
       message: map["message"] ?? "",
       members: map["members"] ?? [],
+      isDeleted: map["is_deleted"] ?? false,
+      isEdited: map["is_edited"] ?? false,
     );
   }
 

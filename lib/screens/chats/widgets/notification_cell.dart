@@ -60,7 +60,6 @@ class _NotificationCellState extends ConsumerState<NotificationCell> {
         _message = "$_userName added $membersName";
       } else if (widget.item.messageType == MessageType.removeMember) {
         String membersName = '';
-
         if (widget.item.members![0]["uid"] == userData.uid) {
           membersName = 'You';
         } else {
@@ -70,6 +69,8 @@ class _NotificationCellState extends ConsumerState<NotificationCell> {
           membersName = user.name;
         }
         _message = "$_userName removed $membersName";
+      } else if (widget.item.messageType == MessageType.userLeft) {
+        _message = "$_userName left";
       } else if (widget.item.messageType == MessageType.changeGroupName) {
         _message = "$_userName changed the group name";
       } else if (widget.item.messageType == MessageType.changeGroupImage) {

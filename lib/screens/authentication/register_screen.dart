@@ -11,7 +11,6 @@ import 'package:chat_app/utils/utils.dart';
 import 'package:chat_app/widgets/app_button.dart';
 import 'package:chat_app/widgets/app_header.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,11 +77,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           photoURL: imageUrl,
         );
         String uid = uId(credential.user?.uid);
-
-        DatabaseReference usersRef = FirebaseDatabase.instance.ref(
-          "/chat/users",
-        );
-        UserData user = UserData(
+        UserData userData = UserData(
           uid: uid,
           name: _nameController.text,
           imageUrl: imageUrl,
@@ -91,17 +86,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           online: true,
           lastSeenOnline: 0,
         );
-        await usersRef.child(user.uid).set(user.toMap());
-        ref.read(userProvider.notifier).saveUserData(user);
-        setState(() {
-          _isLoading = false;
+        saveUserData(userData, () {
+          ref.read(userProvider.notifier).saveUserData(userData);
+          setState(() {
+            _isLoading = false;
+          });
+          if (context.mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (ctx) => ChatsScreen()),
+            );
+          }
         });
-        if (context.mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (ctx) => ChatsScreen()),
-          );
-        }
       } on FirebaseAuthException catch (e) {
         setState(() {
           _isLoading = false;

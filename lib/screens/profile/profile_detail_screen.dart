@@ -1,7 +1,8 @@
 import 'package:chat_app/constants/app_colors.dart';
 import 'package:chat_app/constants/constant_styles.dart';
+import 'package:chat_app/models/user.dart';
 import 'package:chat_app/provider/user_provider.dart';
-import 'package:chat_app/utils/utils.dart';
+import 'package:chat_app/utils/chat_handler.dart';
 import 'package:chat_app/widgets/app_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,22 +11,25 @@ import 'package:image_picker/image_picker.dart';
 class ProfileDetailScreen extends ConsumerWidget {
   const ProfileDetailScreen({super.key});
 
-  void _pickImage() async {
+  void _pickImage(UserData userData) async {
     final pickedImage = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       imageQuality: 50,
       maxWidth: 150,
     );
-    logging('image : ${pickedImage!.path}');
+    updateProfilePic(userData, pickedImage!.path, (downloadURL) {
+      // dispatch(hideLoader());
+      // dispatch(updateProfilePicData(imageUrl));
+    });
   }
 
-  void _handleImageCapture() async {
+  void _handleImageCapture(UserData userData) async {
     final pickedImage = await ImagePicker().pickImage(
       source: ImageSource.camera,
       imageQuality: 50,
       maxWidth: 150,
     );
-    logging('image : ${pickedImage!.path}');
+    print('image : ${pickedImage!.path}');
   }
 
   @override
@@ -68,12 +72,12 @@ class ProfileDetailScreen extends ConsumerWidget {
                         ListTile(
                           leading: Icon(Icons.camera),
                           title: Text('Camera'),
-                          onTap: _handleImageCapture,
+                          onTap: () => _handleImageCapture(userData),
                         ),
                         ListTile(
                           leading: Icon(Icons.browse_gallery),
                           title: Text('Gallery'),
-                          onTap: _pickImage,
+                          onTap: () => _pickImage(userData),
                         ),
                       ],
                     );

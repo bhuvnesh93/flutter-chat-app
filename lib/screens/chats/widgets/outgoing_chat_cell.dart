@@ -5,9 +5,14 @@ import 'package:chat_app/utils/chat_handler.dart';
 import 'package:flutter/material.dart';
 
 class OutgoingChatCell extends StatefulWidget {
-  const OutgoingChatCell({super.key, required this.item});
+  const OutgoingChatCell({
+    super.key,
+    required this.item,
+    required this.onLongPress,
+  });
 
   final MessageData item;
+  final Function(MessageData item) onLongPress;
 
   @override
   State<OutgoingChatCell> createState() => _OutgoingChatCellState();
@@ -34,26 +39,32 @@ class _OutgoingChatCellState extends State<OutgoingChatCell> {
                 85 /
                 100, // Maximum width of 300 logical pixels
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.item.message!,
-                style: ConstantStyles.medium.copyWith(fontSize: 16),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  chatFormatTimeAMPM(widget.item.timestamp),
-                  textAlign: TextAlign.right,
-                  style: ConstantStyles.medium.copyWith(
-                    fontSize: 13,
-                    color: AppColors.greyColor,
+          child:
+              widget.item.isDeleted!
+                  ? Text("this message has been deleted")
+                  : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InkWell(
+                        onLongPress: () => widget.onLongPress(widget.item),
+                        child: Text(
+                          widget.item.message!,
+                          style: ConstantStyles.medium.copyWith(fontSize: 16),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          chatFormatTimeAMPM(widget.item.timestamp),
+                          textAlign: TextAlign.right,
+                          style: ConstantStyles.medium.copyWith(
+                            fontSize: 13,
+                            color: AppColors.greyColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

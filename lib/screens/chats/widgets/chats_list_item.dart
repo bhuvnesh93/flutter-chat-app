@@ -1,10 +1,8 @@
-import 'dart:developer';
-
 import 'package:chat_app/constants/constant_styles.dart';
 import 'package:chat_app/models/group.dart';
-import 'package:chat_app/models/user.dart';
 import 'package:chat_app/provider/chat_provider.dart';
 import 'package:chat_app/provider/user_provider.dart';
+import 'package:chat_app/widgets/app_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,6 +22,7 @@ class ChatsListItem extends ConsumerWidget {
     final userData = ref.read(userProvider).user;
     String groupName = "";
     String groupImage = "";
+    String subTitle = "";
 
     if (item.group == false) {
       List<String> arr = item.groupId.split("_");
@@ -40,22 +39,27 @@ class ChatsListItem extends ConsumerWidget {
       groupImage = item.imageUrl;
     }
 
+    if (item.lastMessage != null) {
+      if (item.lastMessage!.isDeleted!) {
+        subTitle = "this message is deleted";
+      } else if (item.lastMessage!.timestamp >
+          item.members[userData.uid].deleteTill) {
+        subTitle = item.lastMessage!.message;
+      }
+    }
+
     return ListTile(
       contentPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      leading: CircleAvatar(
-        radius: 30,
-        backgroundImage:
-            groupImage.isNotEmpty
-                ? NetworkImage(groupImage)
-                : AssetImage(
-                  item.group
-                      ? "assets/images/default_group.png"
-                      : "assets/images/default_profile.png",
-                ),
+      leading: AppImage(
+        image: groupImage,
+        defautImage:
+            item.group
+                ? "assets/images/default_group.png"
+                : "assets/images/default_profile.png",
       ),
       title: Text(groupName, style: ConstantStyles.bold.copyWith(fontSize: 17)),
       subtitle: Text(
-        item.lastMessage?.message ?? "",
+        subTitle,
         style: ConstantStyles.regular.copyWith(
           fontSize: 16,
           color: Colors.black,

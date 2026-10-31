@@ -1,6 +1,5 @@
 import 'package:chat_app/constants/app_colors.dart';
 import 'package:chat_app/constants/constants.dart';
-import 'package:chat_app/models/user.dart';
 import 'package:chat_app/provider/user_provider.dart';
 import 'package:chat_app/screens/authentication/register_screen.dart';
 import 'package:chat_app/screens/chats/chats_screen.dart';
@@ -10,7 +9,6 @@ import 'package:chat_app/widgets/app_button.dart';
 import 'package:chat_app/widgets/app_header.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final _firebase = FirebaseAuth.instance;
@@ -44,28 +42,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
         String uid = uId(credential.user?.uid);
         updateOnlineOfflineStatus(uid, true);
-        DatabaseReference usersRef = FirebaseDatabase.instance.ref(
-          "/chat/users/$uid",
-        );
-        final snapshot = await usersRef.once();
-        final originalMap = snapshot.snapshot.value as Map<Object?, Object?>;
-        Map<String, dynamic> castedMap = originalMap.cast<String, dynamic>();
-        try {
-          UserData userData = UserData.fromMap(castedMap);
+        fetchUserData(uid, (userData) {
           ref.read(userProvider.notifier).saveUserData(userData);
-        } on Exception catch (e) {
-          logging("e $e");
-        }
-
-        setState(() {
-          _isLoading = false;
+          setState(() {
+            _isLoading = false;
+          });
+          if (context.mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (ctx) => ChatsScreen()),
+            );
+          }
         });
-        if (context.mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (ctx) => ChatsScreen()),
-          );
-        }
       } on FirebaseAuthException catch (e) {
         setState(() {
           _isLoading = false;

@@ -27,7 +27,7 @@ class _IncomingChatCellState extends ConsumerState<IncomingChatCell> {
   Widget build(BuildContext context) {
     return Consumer(
       builder: (context, ref, child) {
-        List<UserData> usersList = ref.read(chatProvider).usersList;
+        final usersList = ref.read(chatProvider).usersList;
         UserData userData = usersList.firstWhere(
           (id) => id.uid == widget.item.senderId,
         );
